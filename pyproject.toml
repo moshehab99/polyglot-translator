@@ -1,17 +1,32 @@
 [project]
 name = "polyglot-translator"
 version = "0.1.0"
-description = "Add your description here"
+description = "Polyglot – Smart Language Translator (MSA, Egyptian Arabic, English, French, Italian, German, Spanish)"
 readme = "README.md"
 authors = [
     { name = "Mohamed", email = "moshehab9924@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "anthropic>=2.9.0",
+    "fastapi>=0.163.1",
+    "google-genai>=3.4.0",
+    "jinja2>=3.1.6",
+    "pydantic-settings>=2.16.3",
+    "uvicorn[standard]>=0.54.0",
+]
 
-[project.scripts]
-polyglot-translator = "polyglot_translator:main"
+[tool.uv]
+package = false
 
-[build-system]
-requires = ["uv_build>=0.13.8,<0.14.0"]
-build-backend = "uv_build"
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
+]
