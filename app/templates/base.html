@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}Polyglot – Smart Language Translator{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true">文A</span>
+      <span class="brand-text">Polyglot</span>
+    </a>
+    <span class="tagline">Smart Language Translator</span>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    Modern Standard Arabic · Egyptian Arabic · English · French · Italian · German · Spanish
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

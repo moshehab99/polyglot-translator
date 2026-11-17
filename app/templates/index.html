@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="translator" id="translator" data-max-chars="{{ max_chars }}" data-auto-code="{{ auto_code }}">
+
+  <div class="toolbar">
+    <label class="select-wrap">
+      <span class="select-label">From</span>
+      <select id="source" name="source" aria-label="Source language">
+        <option value="{{ auto_code }}" data-rtl="false" {% if default_source == auto_code %}selected{% endif %}>Auto-detect</option>
+        {% for lang in languages %}
+        <option value="{{ lang.code }}" data-rtl="{{ 'true' if lang.rtl else 'false' }}" data-name="{{ lang.name }}" lang="{{ lang.code }}"
+          {% if default_source == lang.code %}selected{% endif %}>{{ lang.name }} · {{ lang.native_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <button type="button" id="swap" class="icon-button" title="Swap languages" aria-label="Swap languages" disabled>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/>
+      </svg>
+    </button>
+
+    <label class="select-wrap">
+      <span class="select-label">To</span>
+      <select id="target" name="target" aria-label="Target language">
+        {% for lang in languages %}
+        <option value="{{ lang.code }}" data-rtl="{{ 'true' if lang.rtl else 'false' }}" data-name="{{ lang.name }}" lang="{{ lang.code }}"
+          {% if default_target == lang.code %}selected{% endif %}>{{ lang.name }} · {{ lang.native_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <textarea id="source-text" name="text" rows="8" maxlength="{{ max_chars }}" dir="auto"
+        placeholder="Type or paste text here…" aria-label="Text to translate" autofocus></textarea>
+      <div class="pane-footer">
+        <span class="counter" id="counter" aria-live="polite"><span id="count">0</span> / {{ max_chars }}</span>
+        <button type="button" id="clear" class="text-button" hidden>Clear</button>
+      </div>
+    </div>
+
+    <div class="pane pane-output">
+      <div id="output" class="output" dir="ltr" lang="{{ default_target }}" aria-live="polite" aria-label="Translation" tabindex="0"
+        data-placeholder="Translation will appear here"></div>
+      <div class="pane-footer">
+        <span class="detected" id="detected" aria-live="polite"></span>
+        <button type="button" id="copy" class="text-button" disabled>
+          <span id="copy-label">Copy</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button type="button" id="translate" class="primary-button" disabled>
+      <span class="spinner" id="spinner" hidden aria-hidden="true"></span>
+      <span id="translate-label">Translate</span>
+    </button>
+    <span class="hint">Ctrl + Enter</span>
+  </div>
+
+  <div id="error" class="error" role="alert" hidden></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/app.js" defer></script>
+{% endblock %}
