@@ -91,9 +91,68 @@ additions.
 
 ### How to run
 
-The runner CLI (`uv run python -m evals.dialect`) arrives in the next milestone. Tests
-never call a real API:
+The CLI makes **real API calls** with the provider and key set in `.env`. One request is
+sent per item, one at a time.
 
 ```
-uv run pytest tests/test_eval_dataset.py -q
+uv run python -m evals.dialect --limit 3           # smoke run: 3 requests
+uv run python -m evals.dialect                     # full run (asks to confirm)
+uv run python -m evals.dialect --tag no_markers    # one slice
+uv run python -m evals.dialect --baseline evals/results/<earlier>.json
 ```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--target` | `en` | Target language: `en`, `fr`, `it`, `de` or `es` (`ar`/`arz` are rejected) |
+| `--limit N` | all | Only the first N items, applied after `--tag` |
+| `--tag TAG` | none | Only items with this tag |
+| `--model M` | from `.env` | Overrides the active provider's model |
+| `--dataset PATH` | `evals/data/dialect.jsonl` | Dataset file |
+| `--baseline PATH` | none | Earlier result JSON to compare against |
+| `--delay S` | 4 | Seconds between requests |
+| `--retry-wait S` | 60 | Seconds to wait after a rate limit before retrying |
+| `--out-dir PATH` | `evals/results` | Where reports go |
+| `--yes` | off | Skips the confirmation prompt shown for more than 10 requests |
+
+**Rate limits.** After a `429`, the runner waits `--retry-wait` and retries the same item,
+at most 2 times. If it still fails, the daily quota has probably run out. The run then
+stops, saves a report marked partial, and exits with code 2. The free-tier quota resets
+at midnight Pacific time.
+
+**Other failures.**
+- An auth error (bad or missing key) aborts the run without writing a report (exit 1).
+- Any other provider error marks the item `error`, recording the exception type only,
+  and the run continues.
+- Anything unexpected crashes the run.
+
+Exit codes: 0 = complete, 1 = aborted or declined, 2 = partial.
+
+Tests never call a real API. They use a fake provider and fake sleep:
+
+```
+uv run pytest tests/test_eval_dataset.py tests/test_eval_metrics.py tests/test_eval_runner.py -q
+```
+
+### Reading a report
+
+Each run writes two files to `evals/results/`, named
+`dialect_<YYYYMMDD-HHMMSS>_<provider>_<model>` (UTC time, model name made safe for file
+names). The `.json` and `.md` files share that name.
+
+- **`meta`**:
+  - UTC time, dataset path, sha256 and size, provider, model, target.
+  - **prompt fingerprint**: short sha256 of the auto-detect system prompt, the user
+    message template and the JSON schema. It tells you which prompt produced the numbers.
+  - git commit (with `-dirty` if tracked files had changes), filters.
+  - `partial`, `stop_reason`, `not_run`.
+- **`summary`**: accuracy with 95% Wilson interval, the confusion matrix, P/R/F1 per
+  label, accuracy per tag, median latency (successful requests only).
+- **`items`**: id, text, label, predicted, outcome (`correct` / `wrong` / `error`),
+  tags, translation, error type, latency in ms.
+- **`baseline`** (only with `--baseline`): items that were fixed and items that broke,
+  compared by id. It also says whether the prompt fingerprint changed and whether the
+  **dataset hash** changed. If the hash changed, the numbers are not directly comparable.
+
+The `.md` file shows the same information as tables and lists every wrong or error item
+with its text. The console shows only an ASCII summary and the two file paths. Result
+files are committed only when the maintainer chooses a run to keep (e.g. the baseline).
