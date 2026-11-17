@@ -78,3 +78,18 @@
 {"id": "d078", "text": "هات الشنطة اللي على الترابيزة وتعالى بسرعة.", "label": "arz", "tags": ["no_markers"], "note": "imperatives; اللي, الشنطة, الترابيزة"}
 {"id": "d079", "text": "تتوقع الأرصاد الجوية أمطارًا غزيرة على المناطق الساحلية خلال الساعات القادمة.", "label": "ar", "tags": ["clear"], "note": "weather news"}
 {"id": "d080", "text": "متشكر جدًا لحضرتك على مساعدتك، ربنا يكرمك.", "label": "arz", "tags": ["polite"], "note": "thank-you message"}
+{"id": "d081", "text": "طيب تمام", "label": "arz", "tags": ["short"], "note": "human-written"}
+{"id": "d082", "text": "ماشي هات", "label": "arz", "tags": ["short"], "note": "human-written"}
+{"id": "d083", "text": "هو كدا", "label": "arz", "tags": ["short", "chat_spelling"], "note": "human-written; كدا = chat spelling of كده"}
+{"id": "d084", "text": "لسه شوية", "label": "arz", "tags": ["short", "no_markers"], "note": "human-written"}
+{"id": "d085", "text": "خليها عليا المرة دي", "label": "arz", "tags": ["no_markers"], "note": "human-written"}
+{"id": "d086", "text": "النت فصل عندي", "label": "arz", "tags": ["short", "no_markers"], "note": "human-written"}
+{"id": "d087", "text": "الشغل النهاردة تقيل أوي", "label": "arz", "tags": ["clear"], "note": "human-written"}
+{"id": "d088", "text": "نسيت المفتاح جوه الشقة", "label": "arz", "tags": ["no_markers"], "note": "human-written"}
+{"id": "d089", "text": "الطريق زحمة من الصبح", "label": "arz", "tags": ["no_markers"], "note": "human-written"}
+{"id": "d090", "text": "القهوة بردت خالص", "label": "arz", "tags": ["clear"], "note": "human-written"}
+{"id": "d091", "text": "سأذهب إلى العمل مبكرا غدا", "label": "ar", "tags": ["clear"], "note": "human-written"}
+{"id": "d092", "text": "هل يمكنك إرسال الملف عبر البريد", "label": "ar", "tags": ["clear"], "note": "human-written"}
+{"id": "d093", "text": "الطقس اليوم معتدل وجميل", "label": "ar", "tags": ["topic_swap"], "note": "human-written"}
+{"id": "d094", "text": "أحتاج إلى بعض الوقت لإنهاء المهمة", "label": "ar", "tags": ["clear"], "note": "human-written"}
+{"id": "d095", "text": "سأشتري بعض الأغراض في طريق العودة", "label": "ar", "tags": ["topic_swap"], "note": "human-written"}

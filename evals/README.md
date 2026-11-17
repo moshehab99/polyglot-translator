@@ -73,18 +73,19 @@ free-tier API.
 
 An item can carry several tags, for example `["polite", "long"]`.
 
-Current composition: 80 items, 40 `ar` and 40 `arz`, with labels alternating in file
-order so a small `--limit` still covers both.
+Current composition: 95 items, 45 `ar` and 50 `arz`. In d001–d080 the labels alternate
+in file order, so a small `--limit` still covers both. d081–d095 are human-written
+additions.
 
 | Tag | ar | arz |
 |---|---|---|
-| clear | 12 | 6 |
-| short | 8 | 6 |
+| clear | 15 | 8 |
+| short | 8 | 11 |
 | shared | 5 | 0 |
-| topic_swap | 10 | 6 |
-| no_markers | 0 | 6 |
+| topic_swap | 12 | 6 |
+| no_markers | 0 | 11 |
 | code_switch | 2 | 5 |
-| chat_spelling | 0 | 5 |
+| chat_spelling | 0 | 6 |
 | polite | 0 | 6 |
 | long | 8 | 6 |
 
