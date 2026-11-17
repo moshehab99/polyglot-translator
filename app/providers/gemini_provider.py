@@ -57,23 +57,39 @@ class GeminiProvider(TranslationProvider):
                 store=False,
                 timeout=self._timeout_s,
             )
-        except genai_errors.APIError as exc:
-            raise self._map_api_error(exc) from exc
         except ProviderError:
             raise
-        except Exception as exc:  # network / timeout / SDK-internal failures
-            logger.exception("Gemini request failed unexpectedly")
-            raise ProviderUnavailableError(
-                f"{type(exc).__name__}: {exc}", provider=self.name
-            ) from exc
+        except Exception as exc:
+            raise self._map_exception(exc) from exc
 
         return self._parse(interaction, source)
 
-    def _map_api_error(self, exc: genai_errors.APIError) -> ProviderError:
-        detail = f"HTTP {exc.code} {exc.status or ''}: {exc.message or ''}".strip()
-        if exc.code == 429:
+    def _map_exception(self, exc: Exception) -> ProviderError:
+        """Classify any failure raised by the SDK.
+
+        google-genai raises two families:
+        - ``google.genai.errors.APIError`` (``code`` / ``status`` / ``message`` / ``details``)
+          from the classic ``models`` surface, and
+        - an OpenAI-style family for the Interactions API whose status errors carry
+          ``status_code`` and ``body`` (only importable from a private module, so we
+          duck-type it). Connection/timeout errors in that family carry no status.
+        """
+        if isinstance(exc, genai_errors.APIError):
+            return self._classify(exc.code, exc.message or "", exc.details, exc.status)
+        status_code = getattr(exc, "status_code", None)
+        if isinstance(status_code, int):
+            message = getattr(exc, "message", None) or str(exc)
+            return self._classify(status_code, message, getattr(exc, "body", None), None)
+        logger.exception("Gemini request failed without an HTTP status")
+        return ProviderUnavailableError(f"{type(exc).__name__}: {exc}", provider=self.name)
+
+    def _classify(
+        self, code: int, message: str, payload: Any, status: str | None
+    ) -> ProviderError:
+        detail = f"HTTP {code} {status or ''}: {message}".replace("  ", " ").strip()
+        if code == 429:
             return ProviderRateLimitError(detail, provider=self.name)
-        if exc.code in _AUTH_STATUS_CODES or _is_invalid_api_key(exc):
+        if code in _AUTH_STATUS_CODES or _is_invalid_api_key(code, message, payload):
             return ProviderAuthError(detail, provider=self.name)
         return ProviderUnavailableError(detail, provider=self.name)
 
@@ -98,18 +114,19 @@ class GeminiProvider(TranslationProvider):
         return TranslationResult(translation=translation, detected_source=detected)
 
 
-def _is_invalid_api_key(exc: genai_errors.APIError) -> bool:
+def _is_invalid_api_key(code: int, message: str, payload: Any) -> bool:
     """Gemini reports a bad key as HTTP 400 with reason ``API_KEY_INVALID``.
 
-    The reason lives in ``error.details[].reason`` of the JSON body; the message is
-    usually "API key not valid. Please pass a valid API key.". Check both.
+    The reason lives in ``error.details[].reason`` of the JSON body (``payload`` is that
+    body, or a one-element list wrapping it); the message is usually
+    "API key not valid. Please pass a valid API key.". Check both.
     """
-    if exc.code != 400:
+    if code != 400:
         return False
-    if _INVALID_KEY_REASON in _reasons(exc.details):
+    if _INVALID_KEY_REASON in _reasons(payload):
         return True
-    message = (exc.message or "").lower()
-    return "api key not valid" in message or "api_key_invalid" in message
+    lowered = message.lower()
+    return "api key not valid" in lowered or "api_key_invalid" in lowered
 
 
 def _reasons(details: Any) -> set[str]:

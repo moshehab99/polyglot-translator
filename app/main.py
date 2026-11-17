@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.errors import register_exception_handlers
 from app.api.routes_translate import router as api_router
 from app.config import Settings, get_settings
 from app.logging import configure_logging, get_logger
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
         title="Polyglot – Smart Language Translator", version="0.1.0", lifespan=lifespan
     )
     app.include_router(api_router)
+    register_exception_handlers(app)
     return app
 
 

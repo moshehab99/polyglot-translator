@@ -175,3 +175,77 @@ async def test_bad_output_variants(text: str | None) -> None:
     client = make_client(interaction(text, status="incomplete"))
     with pytest.raises(ProviderBadOutputError):
         await GeminiProvider(client=client, model="m").translate("x", None, EN)
+
+
+# --- Interactions API exception family -----------------------------------------
+# The Interactions surface raises an OpenAI-style family (APIStatusError with
+# `status_code` + `body`) that is only importable from a private module. The provider
+# duck-types it; these tests build the real classes to prove the mapping holds.
+
+from google.genai._gaos.lib import compat_errors  # noqa: E402  (test-only private import)
+
+INVALID_KEY_BODY = [
+    {
+        "error": {
+            "code": 400,
+            "message": "API key not valid. Please pass a valid API key.",
+            "status": "INVALID_ARGUMENT",
+            "details": [
+                {
+                    "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                    "reason": "API_KEY_INVALID",
+                    "domain": "googleapis.com",
+                }
+            ],
+        }
+    }
+]
+
+
+def compat_status_error(
+    cls: type, status: int, message: str, body: object
+) -> Exception:
+    httpx = compat_errors.httpx
+    request = httpx.Request("POST", "https://generativelanguage.googleapis.com/v1/interactions")
+    response = httpx.Response(status, request=request)
+    return cls(message, response=response, body=body)
+
+
+async def test_interactions_400_api_key_invalid_maps_to_auth_error() -> None:
+    exc = compat_status_error(
+        compat_errors.BadRequestError, 400, "Error code: 400 - [...]", INVALID_KEY_BODY
+    )
+    client = make_client(side_effect=exc)
+    with pytest.raises(ProviderAuthError) as exc_info:
+        await GeminiProvider(client=client, model="m").translate("x", None, EN)
+    assert exc_info.value.detail.startswith("HTTP 400")
+
+
+@pytest.mark.parametrize(
+    ("cls", "status", "expected"),
+    [
+        (compat_errors.RateLimitError, 429, ProviderRateLimitError),
+        (compat_errors.AuthenticationError, 401, ProviderAuthError),
+        (compat_errors.PermissionDeniedError, 403, ProviderAuthError),
+        (compat_errors.InternalServerError, 503, ProviderUnavailableError),
+        (compat_errors.BadRequestError, 400, ProviderUnavailableError),
+    ],
+)
+async def test_interactions_status_errors_are_mapped(
+    cls: type, status: int, expected: type[Exception]
+) -> None:
+    exc = compat_status_error(cls, status, "upstream text", {"error": {"message": "m"}})
+    client = make_client(side_effect=exc)
+    with pytest.raises(expected) as exc_info:
+        await GeminiProvider(client=client, model="m").translate("x", None, EN)
+    assert str(status) in exc_info.value.detail
+
+
+async def test_interactions_connection_and_timeout_errors_are_unavailable() -> None:
+    httpx = compat_errors.httpx
+    request = httpx.Request("POST", "https://generativelanguage.googleapis.com/v1/interactions")
+    for exc in (compat_errors.APIConnectionError(request=request), compat_errors.APITimeoutError(request)):
+        client = make_client(side_effect=exc)
+        with pytest.raises(ProviderUnavailableError) as exc_info:
+            await GeminiProvider(client=client, model="m").translate("x", None, EN)
+        assert type(exc).__name__ in exc_info.value.detail
