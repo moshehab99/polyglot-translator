@@ -1,0 +1,80 @@
+{"id": "d001", "text": "أعلنت وزارة الصحة عن حملة تطعيم جديدة تبدأ الأسبوع المقبل في جميع المحافظات.", "label": "ar", "tags": ["clear"], "note": "news"}
+{"id": "d002", "text": "إنت فين؟ أنا مستنيك بقالي ساعة قدام المحطة. لو مش جاي قولي عشان أروّح.", "label": "arz", "tags": ["clear", "long"], "note": "chat"}
+{"id": "d003", "text": "السلام عليكم", "label": "ar", "tags": ["short", "shared"]}
+{"id": "d004", "text": "إزيك؟", "label": "arz", "tags": ["short"]}
+{"id": "d005", "text": "هل شاهدت مباراة الأمس؟ كان الهدف الأخير رائعًا حقًا.", "label": "ar", "tags": ["topic_swap"], "note": "MSA about football"}
+{"id": "d006", "text": "الحكومة رفعت سعر البنزين تاني الأسبوع ده. الناس كلها بتشتكي من الغلا، والمواصلات كمان هتغلى.", "label": "arz", "tags": ["topic_swap", "long"], "note": "Egyptian about economy news"}
+{"id": "d007", "text": "شهدت العاصمة أمس افتتاح معرض الكتاب الدولي بمشاركة أكثر من خمسمائة دار نشر. ويستمر المعرض لمدة أسبوعين، ويتضمن ندوات وورش عمل للأطفال.", "label": "ar", "tags": ["long"], "note": "news"}
+{"id": "d008", "text": "الواد ده جدع وشاطر، ربنا يخليه.", "label": "arz", "tags": ["no_markers"], "note": "nominal sentence; ده, الواد, جدع"}
+{"id": "d009", "text": "يرجى إغلاق الهاتف المحمول أثناء الاجتماع.", "label": "ar", "tags": ["clear"], "note": "instruction"}
+{"id": "d010", "text": "ابعتلي الـ file على الإيميل عشان أعمل review قبل الميتنج.", "label": "arz", "tags": ["code_switch"], "note": "work chat"}
+{"id": "d011", "text": "مغلق للصيانة", "label": "ar", "tags": ["short"], "note": "sign"}
+{"id": "d012", "text": "ازيك يا باشا عامل ايه النهارده", "label": "arz", "tags": ["chat_spelling"], "note": "no hamzas, no punctuation"}
+{"id": "d013", "text": "أريد أن أطلب بيتزا كبيرة بالجبن وزجاجتين من العصير.", "label": "ar", "tags": ["topic_swap"], "note": "MSA about ordering food"}
+{"id": "d014", "text": "لو سمحت حضرتك ممكن تبعتلي العقد النهارده عشان أراجعه؟", "label": "arz", "tags": ["polite"], "note": "work request"}
+{"id": "d015", "text": "يمكنك تحميل التطبيق من Google Play ثم تسجيل الدخول باستخدام بريدك الإلكتروني.", "label": "ar", "tags": ["code_switch"], "note": "MSA with a brand name"}
+{"id": "d016", "text": "مش عارف أعمل إيه في الموضوع ده.", "label": "arz", "tags": ["clear"]}
+{"id": "d017", "text": "ارتفعت أسعار النفط اليوم بعد صدور بيانات اقتصادية أفضل من المتوقع.", "label": "ar", "tags": ["clear"], "note": "news"}
+{"id": "d018", "text": "مش فاهم", "label": "arz", "tags": ["short"]}
+{"id": "d019", "text": "صباح الخير", "label": "ar", "tags": ["short", "shared"]}
+{"id": "d020", "text": "البورصة نزلت جامد النهارده بعد قرار البنك المركزي.", "label": "arz", "tags": ["topic_swap"], "note": "Egyptian about financial news"}
+{"id": "d021", "text": "لا أعرف ماذا أرتدي في حفلة الليلة.", "label": "ar", "tags": ["topic_swap"], "note": "MSA about clothes"}
+{"id": "d022", "text": "اقفل الشباك ده، الهوا جامد.", "label": "arz", "tags": ["no_markers"], "note": "imperative; ده, الهوا, جامد"}
+{"id": "d023", "text": "نود إعلامكم بأن موعد تسليم المشروع قد تأجل إلى نهاية الشهر. يرجى مراجعة الخطة الزمنية الجديدة المرفقة بهذه الرسالة. وفي حال وجود أي استفسار، لا تترددوا في التواصل معنا.", "label": "ar", "tags": ["long"], "note": "work email"}
+{"id": "d024", "text": "أنا عملت cancel للأوردر عشان الـ delivery اتأخر أوي.", "label": "arz", "tags": ["code_switch"], "note": "chat"}
+{"id": "d025", "text": "لا تستخدم هذا الجهاز بالقرب من الماء.", "label": "ar", "tags": ["clear"], "note": "instruction"}
+{"id": "d026", "text": "حلووووو جدااا بجد", "label": "arz", "tags": ["chat_spelling"], "note": "elongated letters"}
+{"id": "d027", "text": "إن شاء الله", "label": "ar", "tags": ["short", "shared"], "note": "religious phrase"}
+{"id": "d028", "text": "صباح الخير يا فندم، كنت حابب أأكد على ميعاد الاجتماع بكرة الساعة عشرة. لو في أي تغيير ياريت تبلغني. شكرًا لحضرتك.", "label": "arz", "tags": ["polite", "long"], "note": "work email"}
+{"id": "d029", "text": "كم سعر هذا القميص؟ وهل يوجد مقاس أكبر؟", "label": "ar", "tags": ["topic_swap"], "note": "MSA about shopping"}
+{"id": "d030", "text": "هنروح السينما بكرة بالليل، تيجي معانا؟ لو هتيجي قولي بدري عشان أحجزلك تذكرة.", "label": "arz", "tags": ["clear", "long"], "note": "chat"}
+{"id": "d031", "text": "قبل تشغيل الغسالة للمرة الأولى، تأكد من إزالة مسامير التثبيت الموجودة في الخلف. ثم صِل الخرطوم بمصدر المياه وافتح الصنبور ببطء.", "label": "ar", "tags": ["long"], "note": "instructions"}
+{"id": "d032", "text": "يلا بينا", "label": "arz", "tags": ["short"]}
+{"id": "d033", "text": "سوف تُغلق المكتبة أبوابها مبكرًا يوم الخميس بسبب أعمال الصيانة.", "label": "ar", "tags": ["clear"], "note": "notice"}
+{"id": "d034", "text": "الاجتماع اتأجل لبكرة عشان المدير مسافر.", "label": "arz", "tags": ["topic_swap"], "note": "Egyptian about work"}
+{"id": "d035", "text": "ممنوع التدخين", "label": "ar", "tags": ["short"], "note": "sign"}
+{"id": "d036", "text": "لسه راجع من الشغل وتعبان جدًا.", "label": "arz", "tags": ["no_markers"], "note": "nominal/participles; لسه, الشغل"}
+{"id": "d037", "text": "نسيتُ مفاتيحي في السيارة مرة أخرى.", "label": "ar", "tags": ["topic_swap"], "note": "MSA about everyday mishap"}
+{"id": "d038", "text": "الـ deadline بكرة ولسه ما خلصتش الـ presentation.", "label": "arz", "tags": ["code_switch"], "note": "work chat"}
+{"id": "d039", "text": "استيقظتُ اليوم متأخرًا ففاتني القطار. اضطررتُ إلى أخذ سيارة أجرة، ووصلتُ إلى العمل بعد بدء الاجتماع بنصف ساعة.", "label": "ar", "tags": ["long"], "note": "MSA about a casual day"}
+{"id": "d040", "text": "انا مش فاضى دلوقتى هكلمك بعدين", "label": "arz", "tags": ["chat_spelling"], "note": "final ى for ي, no hamza"}
+{"id": "d041", "text": "هل يمكنك إرسال التقرير قبل نهاية اليوم؟", "label": "ar", "tags": ["clear"], "note": "work email"}
+{"id": "d042", "text": "آسف جدًا على التأخير، حضرتك هتلاقي الملف متبعت على الإيميل.", "label": "arz", "tags": ["polite"], "note": "work email"}
+{"id": "d043", "text": "الحمد لله", "label": "ar", "tags": ["short", "shared"], "note": "religious phrase"}
+{"id": "d044", "text": "الجو حر أوي النهارده.", "label": "arz", "tags": ["clear"]}
+{"id": "d045", "text": "سنذهب إلى الشاطئ غدًا إذا كان الجو جميلًا.", "label": "ar", "tags": ["topic_swap"], "note": "MSA about the beach"}
+{"id": "d046", "text": "ماشي يا عم", "label": "arz", "tags": ["short"]}
+{"id": "d047", "text": "تم تحديث نظام Windows، ويجب إعادة تشغيل الحاسوب لإكمال التثبيت.", "label": "ar", "tags": ["code_switch"], "note": "MSA with a product name"}
+{"id": "d048", "text": "وزارة التعليم أعلنت إن الامتحانات هتبدأ أول الشهر الجاي. الطلبة مش مستعدين، وأهاليهم قلقانين جدًا.", "label": "arz", "tags": ["topic_swap", "long"], "note": "Egyptian about education news"}
+{"id": "d049", "text": "يُمنع الوقوف في هذا المكان من الساعة الثامنة صباحًا حتى الخامسة مساءً.", "label": "ar", "tags": ["clear"], "note": "sign"}
+{"id": "d050", "text": "الأكل ده يجنن، تسلم إيدك.", "label": "arz", "tags": ["no_markers"], "note": "ده, يجنن (no بـ), تسلم إيدك"}
+{"id": "d051", "text": "مخرج الطوارئ", "label": "ar", "tags": ["short"], "note": "sign"}
+{"id": "d052", "text": "Seriously؟ إنت لسه صاحي؟", "label": "arz", "tags": ["code_switch"], "note": "chat"}
+{"id": "d053", "text": "هذا الفيلم ممل جدًا، لنشاهد شيئًا آخر.", "label": "ar", "tags": ["topic_swap"], "note": "MSA about a movie night"}
+{"id": "d054", "text": "ياعم سيبك منه ده رخم اوى", "label": "arz", "tags": ["chat_spelling"]}
+{"id": "d055", "text": "أظهرت دراسة حديثة أن المشي لمدة ثلاثين دقيقة يوميًا يقلل من خطر الإصابة بأمراض القلب. ويوصي الباحثون بدمج النشاط البدني في الروتين اليومي.", "label": "ar", "tags": ["long"], "note": "health news"}
+{"id": "d056", "text": "ياريت حضرتك تراجع الأرقام دي قبل ما نبعتها للعميل. أنا لاحظت فرق بسيط في الإجمالي ومش متأكد منه.", "label": "arz", "tags": ["polite", "long"], "note": "work email"}
+{"id": "d057", "text": "لماذا لم تحضر الاجتماع أمس؟", "label": "ar", "tags": ["clear"]}
+{"id": "d058", "text": "عايز آكل حاجة حلوة دلوقتي.", "label": "arz", "tags": ["clear"]}
+{"id": "d059", "text": "شكرًا جزيلًا", "label": "ar", "tags": ["short", "shared"]}
+{"id": "d060", "text": "عامل إيه؟", "label": "arz", "tags": ["short"]}
+{"id": "d061", "text": "ابني لا يريد أن ينام مبكرًا هذه الأيام.", "label": "ar", "tags": ["topic_swap"], "note": "MSA about family life"}
+{"id": "d062", "text": "الدكتور قال إن العملية لازم تتعمل في أقرب وقت.", "label": "arz", "tags": ["topic_swap"], "note": "Egyptian about a medical matter"}
+{"id": "d063", "text": "عزيزي العميل، تم استلام طلبك بنجاح وسيتم شحنه خلال ثلاثة أيام عمل. يمكنك تتبع الشحنة من خلال الرابط المرسل إلى بريدك الإلكتروني.", "label": "ar", "tags": ["long"], "note": "customer notification"}
+{"id": "d064", "text": "امبارح نمت بدري عشان كان عندي امتحان الصبح.", "label": "arz", "tags": ["no_markers"], "note": "past tense; امبارح, بدري, عشان, الصبح"}
+{"id": "d065", "text": "نعتذر عن التأخير، وسنرد على استفسارك في أقرب وقت ممكن.", "label": "ar", "tags": ["clear"], "note": "customer service"}
+{"id": "d066", "text": "الـ laptop بتاعي عمل restart لوحده ومش راضي يفتح.", "label": "arz", "tags": ["code_switch"]}
+{"id": "d067", "text": "أين وضعتَ جهاز التحكم بالتلفاز؟", "label": "ar", "tags": ["topic_swap"], "note": "MSA about the TV remote"}
+{"id": "d068", "text": "هو انت لسه زعلان منى ولا ايه", "label": "arz", "tags": ["chat_spelling"]}
+{"id": "d069", "text": "تعلن إدارة المبنى عن انقطاع المياه يوم السبت من التاسعة صباحًا حتى الثانية ظهرًا. نرجو من السكان تخزين كمية كافية من المياه.", "label": "ar", "tags": ["long"], "note": "building notice"}
+{"id": "d070", "text": "بعد إذن حضرتك، أنا محتاج أجازة يوم الخميس عشان ظرف عائلي.", "label": "arz", "tags": ["polite"], "note": "leave request"}
+{"id": "d071", "text": "اغسل يديك جيدًا قبل تحضير الطعام.", "label": "ar", "tags": ["clear"], "note": "instruction"}
+{"id": "d072", "text": "ليه ما قولتليش إنك جاي؟", "label": "arz", "tags": ["clear"]}
+{"id": "d073", "text": "القطة تجلس على الأريكة طوال اليوم ولا تفعل شيئًا.", "label": "ar", "tags": ["topic_swap"], "note": "MSA about a pet"}
+{"id": "d074", "text": "مفيش مشكلة", "label": "arz", "tags": ["short"]}
+{"id": "d075", "text": "تُعد القاهرة من أكبر المدن في أفريقيا والعالم العربي. ويقصدها ملايين السياح كل عام لزيارة الأهرامات والمتحف المصري.", "label": "ar", "tags": ["long"], "note": "MSA about Egypt: topic must not give away the label"}
+{"id": "d076", "text": "الشركة هتعمل تخفيض في عدد الموظفين السنة دي.", "label": "arz", "tags": ["topic_swap"], "note": "Egyptian about layoffs"}
+{"id": "d077", "text": "أين يمكنني أن أجد أقرب صيدلية؟", "label": "ar", "tags": ["clear"]}
+{"id": "d078", "text": "هات الشنطة اللي على الترابيزة وتعالى بسرعة.", "label": "arz", "tags": ["no_markers"], "note": "imperatives; اللي, الشنطة, الترابيزة"}
+{"id": "d079", "text": "تتوقع الأرصاد الجوية أمطارًا غزيرة على المناطق الساحلية خلال الساعات القادمة.", "label": "ar", "tags": ["clear"], "note": "weather news"}
+{"id": "d080", "text": "متشكر جدًا لحضرتك على مساعدتك، ربنا يكرمك.", "label": "arz", "tags": ["polite"], "note": "thank-you message"}
