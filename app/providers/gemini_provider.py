@@ -29,6 +29,7 @@ from app.providers.schemas import TranslationOutput, translation_json_schema
 logger = get_logger("providers.gemini")
 
 _AUTH_STATUS_CODES = frozenset({401, 403})
+_INVALID_KEY_REASON = "API_KEY_INVALID"
 
 
 class GeminiProvider(TranslationProvider):
@@ -72,7 +73,7 @@ class GeminiProvider(TranslationProvider):
         detail = f"HTTP {exc.code} {exc.status or ''}: {exc.message or ''}".strip()
         if exc.code == 429:
             return ProviderRateLimitError(detail, provider=self.name)
-        if exc.code in _AUTH_STATUS_CODES:
+        if exc.code in _AUTH_STATUS_CODES or _is_invalid_api_key(exc):
             return ProviderAuthError(detail, provider=self.name)
         return ProviderUnavailableError(detail, provider=self.name)
 
@@ -95,3 +96,33 @@ class GeminiProvider(TranslationProvider):
             raise ProviderBadOutputError("empty translation", provider=self.name)
         detected = source if source is not None else get_language(output.detected_source)
         return TranslationResult(translation=translation, detected_source=detected)
+
+
+def _is_invalid_api_key(exc: genai_errors.APIError) -> bool:
+    """Gemini reports a bad key as HTTP 400 with reason ``API_KEY_INVALID``.
+
+    The reason lives in ``error.details[].reason`` of the JSON body; the message is
+    usually "API key not valid. Please pass a valid API key.". Check both.
+    """
+    if exc.code != 400:
+        return False
+    if _INVALID_KEY_REASON in _reasons(exc.details):
+        return True
+    message = (exc.message or "").lower()
+    return "api key not valid" in message or "api_key_invalid" in message
+
+
+def _reasons(details: Any) -> set[str]:
+    """Collect every ``reason`` string nested anywhere in the error payload."""
+    found: set[str] = set()
+    stack = [details]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            reason = node.get("reason")
+            if isinstance(reason, str):
+                found.add(reason)
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
+    return found

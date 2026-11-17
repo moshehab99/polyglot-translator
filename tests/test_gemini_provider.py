@@ -1,3 +1,4 @@
+import inspect
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -84,12 +85,71 @@ async def test_429_maps_to_rate_limit() -> None:
     assert exc_info.value.provider == "gemini"
 
 
+async def test_request_kwargs_match_installed_sdk_signature() -> None:
+    """Catch kwargs the installed google-genai would reject.
+
+    ``create`` declares a few named parameters and forwards everything else as the
+    request body (``**body``), so every kwarg must be either a declared parameter or
+    a field of the typed request body ``CreateModelInteractionParam``.
+    """
+    from google import genai
+    from google.genai.interactions import CreateModelInteractionParam
+
+    client = make_client(interaction(GOOD_JSON))
+    await GeminiProvider(client=client, model="m", timeout_s=3).translate("x", None, EN)
+    sent = client.aio.interactions.create.await_args.kwargs
+
+    real_create = genai.Client(api_key="unused").aio.interactions.create
+    declared = inspect.signature(real_create).parameters
+    body_fields = set(CreateModelInteractionParam.__annotations__)
+    for name in sent:
+        is_declared = name in declared and declared[name].kind is not inspect.Parameter.VAR_KEYWORD
+        assert is_declared or name in body_fields, f"unsupported kwarg: {name}"
+    # The declared ones must bind (catches wrong names like `timeout_s`).
+    inspect.signature(real_create).bind(**sent)
+    assert "timeout" in declared and declared["timeout"].kind is inspect.Parameter.KEYWORD_ONLY
+
+
 @pytest.mark.parametrize("code", [401, 403])
 async def test_auth_codes_map_to_auth_error(code: int) -> None:
     client = make_client(side_effect=client_error(code, "API key not valid"))
     with pytest.raises(ProviderAuthError) as exc_info:
         await GeminiProvider(client=client, model="m").translate("x", None, EN)
     assert "API key not valid" in exc_info.value.detail
+
+
+async def test_400_api_key_invalid_reason_maps_to_auth_error() -> None:
+    payload = {
+        "error": {
+            "code": 400,
+            "message": "API key not valid. Please pass a valid API key.",
+            "status": "INVALID_ARGUMENT",
+            "details": [
+                {
+                    "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                    "reason": "API_KEY_INVALID",
+                    "domain": "googleapis.com",
+                    "metadata": {"service": "generativelanguage.googleapis.com"},
+                }
+            ],
+        }
+    }
+    client = make_client(side_effect=genai_errors.ClientError(400, payload))
+    with pytest.raises(ProviderAuthError) as exc_info:
+        await GeminiProvider(client=client, model="m").translate("x", None, EN)
+    assert "HTTP 400" in exc_info.value.detail
+
+
+async def test_400_with_invalid_key_message_but_no_reason_maps_to_auth_error() -> None:
+    client = make_client(side_effect=client_error(400, "API key not valid. Please pass a valid API key."))
+    with pytest.raises(ProviderAuthError):
+        await GeminiProvider(client=client, model="m").translate("x", None, EN)
+
+
+async def test_plain_400_stays_unavailable() -> None:
+    client = make_client(side_effect=client_error(400, "Invalid JSON payload received."))
+    with pytest.raises(ProviderUnavailableError):
+        await GeminiProvider(client=client, model="m").translate("x", None, EN)
 
 
 async def test_other_client_error_and_server_error_are_unavailable() -> None:
