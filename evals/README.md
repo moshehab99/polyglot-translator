@@ -176,8 +176,8 @@ Settings (.env) -> build_provider -> TranslationService.translate(text, "auto", 
    items go to Egyptian Arabic and `ar` items go to MSA. The output is compared with the
    item's `arabic` reference:
    - **chrF** (character n-grams 1..6, beta = 2, 0-100) after Arabic normalisation:
-     tashkeel and tatweel removed, أ/إ/آ -> ا, ة -> ه, ى -> ي, punctuation dropped,
-     spaces collapsed.
+     tashkeel and tatweel removed, أ/إ/آ -> ا, ة -> ه, ى -> ي, Arabic-Indic (٠-٩)
+     and Persian (۰-۹) digits -> 0-9, punctuation dropped, spaces collapsed.
    - **Latin leak**: the output contains a Latin-script word that is not in the
      reference.
 

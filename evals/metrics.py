@@ -121,7 +121,12 @@ def mean(values: Iterable[float | None]) -> float | None:
 _LATIN_WORD = re.compile(r"[A-Za-z0-9]*[A-Za-z][A-Za-z0-9]*")
 _TASHKEEL = re.compile("[ً-ٰٟ]")
 _LETTER_MAP = str.maketrans(
-    {"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ة": "ه", "ى": "ي", "ـ": None}
+    {
+        "أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ة": "ه", "ى": "ي", "ـ": None,
+        # Arabic-Indic (U+0660-0669) and Persian (U+06F0-06F9) digits -> ASCII 0-9
+        **{chr(0x0660 + d): str(d) for d in range(10)},
+        **{chr(0x06F0 + d): str(d) for d in range(10)},
+    }
 )
 
 
@@ -141,6 +146,7 @@ def normalize_arabic(text: str) -> str:
     Steps:
     - Remove tashkeel and tatweel.
     - Map أ/إ/آ/ٱ -> ا, ة -> ه and ى -> ي.
+    - Map Arabic-Indic (٠-٩) and Persian (۰-۹) digits to ASCII 0-9.
     - Drop every Unicode punctuation character (``P*``, including ، ؟ ؛ and hyphens).
     - Collapse whitespace and casefold Latin letters.
     """

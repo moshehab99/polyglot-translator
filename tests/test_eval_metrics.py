@@ -182,6 +182,16 @@ def test_normalize_arabic() -> None:
     assert normalize_arabic("الـ Meeting (T-shirt)؛") == "ال meeting tshirt"
     # emoji are not punctuation and stay
     assert normalize_arabic("حر 🥵") == "حر 🥵"
+    # Arabic-Indic and Persian digits become ASCII
+    assert normalize_arabic("٠١٢٣٤٥٦٧٨٩") == "0123456789"
+    assert normalize_arabic("۰۱۲۳۴۵۶۷۸۹") == "0123456789"
+    assert normalize_arabic("في ١٠ دقايق") == normalize_arabic("في 10 دقايق") == "في 10 دقايق"
+
+
+def test_chrf_same_for_arabic_indic_and_ascii_digits() -> None:
+    reference = normalize_arabic("هعملك call في 10 دقايق")
+    assert chrf(normalize_arabic("هعملك call في ١٠ دقايق"), reference) == pytest.approx(100.0)
+    assert chrf(normalize_arabic("هعملك call في ۱۰ دقايق"), reference) == pytest.approx(100.0)
 
 
 def test_char_ngrams_ignore_whitespace() -> None:
