@@ -1,0 +1,1362 @@
+{
+  "meta": {
+    "created_utc": "2026-11-18T03:02:47+00:00",
+    "dataset": {
+      "path": "evals/data/dialect.jsonl",
+      "sha256": "01a84f89ac07cce867c9376436d98a4e68cec6efdf0da83f19e58e33d16ffbd3",
+      "size": 95
+    },
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "target": "en",
+    "prompt_fingerprint": "2ac34465d2fb",
+    "git_commit": "5627e9e",
+    "filters": {
+      "tag": null,
+      "limit": null
+    },
+    "selected": 95,
+    "partial": false,
+    "stop_reason": null,
+    "not_run": 0
+  },
+  "summary": {
+    "attempted": 95,
+    "correct": 95,
+    "wrong": 0,
+    "errors": 0,
+    "accuracy": 1.0,
+    "accuracy_ci95": [
+      0.9611337736337738,
+      1.0
+    ],
+    "confusion_matrix": {
+      "ar": {
+        "ar": 45,
+        "arz": 0,
+        "other": 0,
+        "error": 0
+      },
+      "arz": {
+        "ar": 0,
+        "arz": 50,
+        "other": 0,
+        "error": 0
+      }
+    },
+    "per_label": {
+      "ar": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 45
+      },
+      "arz": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 50
+      }
+    },
+    "per_tag": {
+      "chat_spelling": {
+        "n": 6,
+        "correct": 6,
+        "accuracy": 1.0
+      },
+      "clear": {
+        "n": 23,
+        "correct": 23,
+        "accuracy": 1.0
+      },
+      "code_switch": {
+        "n": 7,
+        "correct": 7,
+        "accuracy": 1.0
+      },
+      "long": {
+        "n": 14,
+        "correct": 14,
+        "accuracy": 1.0
+      },
+      "no_markers": {
+        "n": 11,
+        "correct": 11,
+        "accuracy": 1.0
+      },
+      "polite": {
+        "n": 6,
+        "correct": 6,
+        "accuracy": 1.0
+      },
+      "shared": {
+        "n": 5,
+        "correct": 5,
+        "accuracy": 1.0
+      },
+      "short": {
+        "n": 19,
+        "correct": 19,
+        "accuracy": 1.0
+      },
+      "topic_swap": {
+        "n": 18,
+        "correct": 18,
+        "accuracy": 1.0
+      }
+    },
+    "median_latency_ms": 765.9,
+    "not_run": 0
+  },
+  "items": [
+    {
+      "id": "d001",
+      "text": "أعلنت وزارة الصحة عن حملة تطعيم جديدة تبدأ الأسبوع المقبل في جميع المحافظات.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "The Ministry of Health announced a new vaccination campaign starting next week in all governorates.",
+      "error_type": null,
+      "latency_ms": 3232.2
+    },
+    {
+      "id": "d002",
+      "text": "إنت فين؟ أنا مستنيك بقالي ساعة قدام المحطة. لو مش جاي قولي عشان أروّح.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "clear",
+        "long"
+      ],
+      "translation": "Where are you? I've been waiting for you for an hour in front of the station. If you're not coming, tell me so I can go home.",
+      "error_type": null,
+      "latency_ms": 842.9
+    },
+    {
+      "id": "d003",
+      "text": "السلام عليكم",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "short",
+        "shared"
+      ],
+      "translation": "Peace be upon you",
+      "error_type": null,
+      "latency_ms": 921.3
+    },
+    {
+      "id": "d004",
+      "text": "إزيك؟",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "short"
+      ],
+      "translation": "How are you?",
+      "error_type": null,
+      "latency_ms": 686.7
+    },
+    {
+      "id": "d005",
+      "text": "هل شاهدت مباراة الأمس؟ كان الهدف الأخير رائعًا حقًا.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "Did you watch yesterday's match? The last goal was truly wonderful.",
+      "error_type": null,
+      "latency_ms": 664.8
+    },
+    {
+      "id": "d006",
+      "text": "الحكومة رفعت سعر البنزين تاني الأسبوع ده. الناس كلها بتشتكي من الغلا، والمواصلات كمان هتغلى.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap",
+        "long"
+      ],
+      "translation": "The government raised gasoline prices again this week. Everyone is complaining about the high cost of living, and transportation is going to get more expensive too.",
+      "error_type": null,
+      "latency_ms": 911.2
+    },
+    {
+      "id": "d007",
+      "text": "شهدت العاصمة أمس افتتاح معرض الكتاب الدولي بمشاركة أكثر من خمسمائة دار نشر. ويستمر المعرض لمدة أسبوعين، ويتضمن ندوات وورش عمل للأطفال.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "long"
+      ],
+      "translation": "The capital witnessed yesterday the opening of the international book fair with the participation of more than five hundred publishing houses. The exhibition will last for two weeks and includes seminars and workshops for children.",
+      "error_type": null,
+      "latency_ms": 854.0
+    },
+    {
+      "id": "d008",
+      "text": "الواد ده جدع وشاطر، ربنا يخليه.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "no_markers"
+      ],
+      "translation": "This guy is a good person and smart, may God protect him.",
+      "error_type": null,
+      "latency_ms": 695.3
+    },
+    {
+      "id": "d009",
+      "text": "يرجى إغلاق الهاتف المحمول أثناء الاجتماع.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Please turn off your mobile phone during the meeting.",
+      "error_type": null,
+      "latency_ms": 826.3
+    },
+    {
+      "id": "d010",
+      "text": "ابعتلي الـ file على الإيميل عشان أعمل review قبل الميتنج.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "code_switch"
+      ],
+      "translation": "Send me the file by email so I can review it before the meeting.",
+      "error_type": null,
+      "latency_ms": 603.6
+    },
+    {
+      "id": "d011",
+      "text": "مغلق للصيانة",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "short"
+      ],
+      "translation": "Closed for maintenance",
+      "error_type": null,
+      "latency_ms": 746.0
+    },
+    {
+      "id": "d012",
+      "text": "ازيك يا باشا عامل ايه النهارده",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "chat_spelling"
+      ],
+      "translation": "How are you, boss? How are you doing today?",
+      "error_type": null,
+      "latency_ms": 803.7
+    },
+    {
+      "id": "d013",
+      "text": "أريد أن أطلب بيتزا كبيرة بالجبن وزجاجتين من العصير.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "I want to order a large cheese pizza and two bottles of juice.",
+      "error_type": null,
+      "latency_ms": 706.0
+    },
+    {
+      "id": "d014",
+      "text": "لو سمحت حضرتك ممكن تبعتلي العقد النهارده عشان أراجعه؟",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "polite"
+      ],
+      "translation": "Could you please send me the contract today so I can review it?",
+      "error_type": null,
+      "latency_ms": 814.4
+    },
+    {
+      "id": "d015",
+      "text": "يمكنك تحميل التطبيق من Google Play ثم تسجيل الدخول باستخدام بريدك الإلكتروني.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "code_switch"
+      ],
+      "translation": "You can download the application from Google Play and then log in using your email address.",
+      "error_type": null,
+      "latency_ms": 837.8
+    },
+    {
+      "id": "d016",
+      "text": "مش عارف أعمل إيه في الموضوع ده.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "I don't know what to do about this matter.",
+      "error_type": null,
+      "latency_ms": 1099.6
+    },
+    {
+      "id": "d017",
+      "text": "ارتفعت أسعار النفط اليوم بعد صدور بيانات اقتصادية أفضل من المتوقع.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Oil prices rose today after the release of better-than-expected economic data.",
+      "error_type": null,
+      "latency_ms": 805.9
+    },
+    {
+      "id": "d018",
+      "text": "مش فاهم",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "short"
+      ],
+      "translation": "I don't understand",
+      "error_type": null,
+      "latency_ms": 946.2
+    },
+    {
+      "id": "d019",
+      "text": "صباح الخير",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "short",
+        "shared"
+      ],
+      "translation": "Good morning",
+      "error_type": null,
+      "latency_ms": 609.7
+    },
+    {
+      "id": "d020",
+      "text": "البورصة نزلت جامد النهارده بعد قرار البنك المركزي.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "The stock market dropped heavily today after the central bank's decision.",
+      "error_type": null,
+      "latency_ms": 855.2
+    },
+    {
+      "id": "d021",
+      "text": "لا أعرف ماذا أرتدي في حفلة الليلة.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "I don't know what to wear to the party tonight.",
+      "error_type": null,
+      "latency_ms": 934.5
+    },
+    {
+      "id": "d022",
+      "text": "اقفل الشباك ده، الهوا جامد.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "no_markers"
+      ],
+      "translation": "Close that window, the wind is strong.",
+      "error_type": null,
+      "latency_ms": 693.6
+    },
+    {
+      "id": "d023",
+      "text": "نود إعلامكم بأن موعد تسليم المشروع قد تأجل إلى نهاية الشهر. يرجى مراجعة الخطة الزمنية الجديدة المرفقة بهذه الرسالة. وفي حال وجود أي استفسار، لا تترددوا في التواصل معنا.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "long"
+      ],
+      "translation": "We would like to inform you that the project delivery date has been postponed to the end of the month. Please review the new timeline attached to this message. If you have any questions, please do not hesitate to contact us.",
+      "error_type": null,
+      "latency_ms": 881.4
+    },
+    {
+      "id": "d024",
+      "text": "أنا عملت cancel للأوردر عشان الـ delivery اتأخر أوي.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "code_switch"
+      ],
+      "translation": "I cancelled the order because the delivery was very late.",
+      "error_type": null,
+      "latency_ms": 936.6
+    },
+    {
+      "id": "d025",
+      "text": "لا تستخدم هذا الجهاز بالقرب من الماء.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Do not use this device near water.",
+      "error_type": null,
+      "latency_ms": 759.0
+    },
+    {
+      "id": "d026",
+      "text": "حلووووو جدااا بجد",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "chat_spelling"
+      ],
+      "translation": "Really very nice",
+      "error_type": null,
+      "latency_ms": 647.2
+    },
+    {
+      "id": "d027",
+      "text": "إن شاء الله",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "short",
+        "shared"
+      ],
+      "translation": "God willing",
+      "error_type": null,
+      "latency_ms": 956.2
+    },
+    {
+      "id": "d028",
+      "text": "صباح الخير يا فندم، كنت حابب أأكد على ميعاد الاجتماع بكرة الساعة عشرة. لو في أي تغيير ياريت تبلغني. شكرًا لحضرتك.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "polite",
+        "long"
+      ],
+      "translation": "Good morning, sir. I just wanted to confirm the meeting time tomorrow at ten o'clock. If there are any changes, please let me know. Thank you.",
+      "error_type": null,
+      "latency_ms": 905.7
+    },
+    {
+      "id": "d029",
+      "text": "كم سعر هذا القميص؟ وهل يوجد مقاس أكبر؟",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "How much is this shirt? And is there a larger size?",
+      "error_type": null,
+      "latency_ms": 914.5
+    },
+    {
+      "id": "d030",
+      "text": "هنروح السينما بكرة بالليل، تيجي معانا؟ لو هتيجي قولي بدري عشان أحجزلك تذكرة.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "clear",
+        "long"
+      ],
+      "translation": "We are going to the cinema tomorrow night, want to come with us? If you're coming, let me know early so I can book a ticket for you.",
+      "error_type": null,
+      "latency_ms": 872.1
+    },
+    {
+      "id": "d031",
+      "text": "قبل تشغيل الغسالة للمرة الأولى، تأكد من إزالة مسامير التثبيت الموجودة في الخلف. ثم صِل الخرطوم بمصدر المياه وافتح الصنبور ببطء.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "long"
+      ],
+      "translation": "Before operating the washing machine for the first time, make sure to remove the fixing bolts located at the back. Then connect the hose to the water supply and open the faucet slowly.",
+      "error_type": null,
+      "latency_ms": 782.6
+    },
+    {
+      "id": "d032",
+      "text": "يلا بينا",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "short"
+      ],
+      "translation": "Let's go",
+      "error_type": null,
+      "latency_ms": 668.0
+    },
+    {
+      "id": "d033",
+      "text": "سوف تُغلق المكتبة أبوابها مبكرًا يوم الخميس بسبب أعمال الصيانة.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "The library will close its doors early on Thursday due to maintenance work.",
+      "error_type": null,
+      "latency_ms": 1600.2
+    },
+    {
+      "id": "d034",
+      "text": "الاجتماع اتأجل لبكرة عشان المدير مسافر.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "The meeting was postponed until tomorrow because the manager is traveling.",
+      "error_type": null,
+      "latency_ms": 728.0
+    },
+    {
+      "id": "d035",
+      "text": "ممنوع التدخين",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "short"
+      ],
+      "translation": "No smoking",
+      "error_type": null,
+      "latency_ms": 641.9
+    },
+    {
+      "id": "d036",
+      "text": "لسه راجع من الشغل وتعبان جدًا.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "no_markers"
+      ],
+      "translation": "Just got back from work and I'm very tired.",
+      "error_type": null,
+      "latency_ms": 755.7
+    },
+    {
+      "id": "d037",
+      "text": "نسيتُ مفاتيحي في السيارة مرة أخرى.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "I forgot my keys in the car again.",
+      "error_type": null,
+      "latency_ms": 676.6
+    },
+    {
+      "id": "d038",
+      "text": "الـ deadline بكرة ولسه ما خلصتش الـ presentation.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "code_switch"
+      ],
+      "translation": "The deadline is tomorrow and I still haven't finished the presentation.",
+      "error_type": null,
+      "latency_ms": 708.0
+    },
+    {
+      "id": "d039",
+      "text": "استيقظتُ اليوم متأخرًا ففاتني القطار. اضطررتُ إلى أخذ سيارة أجرة، ووصلتُ إلى العمل بعد بدء الاجتماع بنصف ساعة.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "long"
+      ],
+      "translation": "I woke up late today and missed the train. I had to take a taxi, and I arrived at work half an hour after the meeting had started.",
+      "error_type": null,
+      "latency_ms": 633.5
+    },
+    {
+      "id": "d040",
+      "text": "انا مش فاضى دلوقتى هكلمك بعدين",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "chat_spelling"
+      ],
+      "translation": "I am not free right now, I will talk to you later.",
+      "error_type": null,
+      "latency_ms": 623.9
+    },
+    {
+      "id": "d041",
+      "text": "هل يمكنك إرسال التقرير قبل نهاية اليوم؟",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Can you send the report before the end of the day?",
+      "error_type": null,
+      "latency_ms": 1117.1
+    },
+    {
+      "id": "d042",
+      "text": "آسف جدًا على التأخير، حضرتك هتلاقي الملف متبعت على الإيميل.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "polite"
+      ],
+      "translation": "I am very sorry for the delay, you will find the file sent to your email.",
+      "error_type": null,
+      "latency_ms": 975.7
+    },
+    {
+      "id": "d043",
+      "text": "الحمد لله",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "short",
+        "shared"
+      ],
+      "translation": "Praise be to God",
+      "error_type": null,
+      "latency_ms": 876.9
+    },
+    {
+      "id": "d044",
+      "text": "الجو حر أوي النهارده.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "It is very hot today.",
+      "error_type": null,
+      "latency_ms": 1012.9
+    },
+    {
+      "id": "d045",
+      "text": "سنذهب إلى الشاطئ غدًا إذا كان الجو جميلًا.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "We will go to the beach tomorrow if the weather is nice.",
+      "error_type": null,
+      "latency_ms": 641.2
+    },
+    {
+      "id": "d046",
+      "text": "ماشي يا عم",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "short"
+      ],
+      "translation": "Alright, man",
+      "error_type": null,
+      "latency_ms": 759.0
+    },
+    {
+      "id": "d047",
+      "text": "تم تحديث نظام Windows، ويجب إعادة تشغيل الحاسوب لإكمال التثبيت.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "code_switch"
+      ],
+      "translation": "The Windows system has been updated, and the computer must be restarted to complete the installation.",
+      "error_type": null,
+      "latency_ms": 967.8
+    },
+    {
+      "id": "d048",
+      "text": "وزارة التعليم أعلنت إن الامتحانات هتبدأ أول الشهر الجاي. الطلبة مش مستعدين، وأهاليهم قلقانين جدًا.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap",
+        "long"
+      ],
+      "translation": "The Ministry of Education announced that exams will start at the beginning of next month. The students are not ready, and their parents are very worried.",
+      "error_type": null,
+      "latency_ms": 890.0
+    },
+    {
+      "id": "d049",
+      "text": "يُمنع الوقوف في هذا المكان من الساعة الثامنة صباحًا حتى الخامسة مساءً.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Parking is prohibited in this place from eight in the morning until five in the evening.",
+      "error_type": null,
+      "latency_ms": 677.6
+    },
+    {
+      "id": "d050",
+      "text": "الأكل ده يجنن، تسلم إيدك.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "no_markers"
+      ],
+      "translation": "This food is amazing, bless your hands.",
+      "error_type": null,
+      "latency_ms": 1003.7
+    },
+    {
+      "id": "d051",
+      "text": "مخرج الطوارئ",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "short"
+      ],
+      "translation": "Emergency exit",
+      "error_type": null,
+      "latency_ms": 789.6
+    },
+    {
+      "id": "d052",
+      "text": "Seriously؟ إنت لسه صاحي؟",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "code_switch"
+      ],
+      "translation": "Seriously? You are still awake?",
+      "error_type": null,
+      "latency_ms": 635.3
+    },
+    {
+      "id": "d053",
+      "text": "هذا الفيلم ممل جدًا، لنشاهد شيئًا آخر.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "This movie is very boring, let's watch something else.",
+      "error_type": null,
+      "latency_ms": 1211.9
+    },
+    {
+      "id": "d054",
+      "text": "ياعم سيبك منه ده رخم اوى",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "chat_spelling"
+      ],
+      "translation": "Man, leave him alone, he's so annoying.",
+      "error_type": null,
+      "latency_ms": 1297.7
+    },
+    {
+      "id": "d055",
+      "text": "أظهرت دراسة حديثة أن المشي لمدة ثلاثين دقيقة يوميًا يقلل من خطر الإصابة بأمراض القلب. ويوصي الباحثون بدمج النشاط البدني في الروتين اليومي.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "long"
+      ],
+      "translation": "A recent study showed that walking for thirty minutes a day reduces the risk of heart disease. Researchers recommend incorporating physical activity into the daily routine.",
+      "error_type": null,
+      "latency_ms": 1054.6
+    },
+    {
+      "id": "d056",
+      "text": "ياريت حضرتك تراجع الأرقام دي قبل ما نبعتها للعميل. أنا لاحظت فرق بسيط في الإجمالي ومش متأكد منه.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "polite",
+        "long"
+      ],
+      "translation": "I would appreciate it if you could review these numbers before we send them to the client. I noticed a small difference in the total and I'm not sure about it.",
+      "error_type": null,
+      "latency_ms": 756.8
+    },
+    {
+      "id": "d057",
+      "text": "لماذا لم تحضر الاجتماع أمس؟",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Why didn't you attend the meeting yesterday?",
+      "error_type": null,
+      "latency_ms": 814.2
+    },
+    {
+      "id": "d058",
+      "text": "عايز آكل حاجة حلوة دلوقتي.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "I want to eat something sweet right now.",
+      "error_type": null,
+      "latency_ms": 622.7
+    },
+    {
+      "id": "d059",
+      "text": "شكرًا جزيلًا",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "short",
+        "shared"
+      ],
+      "translation": "Thank you very much",
+      "error_type": null,
+      "latency_ms": 728.6
+    },
+    {
+      "id": "d060",
+      "text": "عامل إيه؟",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "short"
+      ],
+      "translation": "How are you?",
+      "error_type": null,
+      "latency_ms": 604.0
+    },
+    {
+      "id": "d061",
+      "text": "ابني لا يريد أن ينام مبكرًا هذه الأيام.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "My son doesn't want to sleep early these days.",
+      "error_type": null,
+      "latency_ms": 748.8
+    },
+    {
+      "id": "d062",
+      "text": "الدكتور قال إن العملية لازم تتعمل في أقرب وقت.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "The doctor said the surgery needs to be done as soon as possible.",
+      "error_type": null,
+      "latency_ms": 697.6
+    },
+    {
+      "id": "d063",
+      "text": "عزيزي العميل، تم استلام طلبك بنجاح وسيتم شحنه خلال ثلاثة أيام عمل. يمكنك تتبع الشحنة من خلال الرابط المرسل إلى بريدك الإلكتروني.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "long"
+      ],
+      "translation": "Dear customer, your order has been successfully received and will be shipped within three business days. You can track the shipment through the link sent to your email.",
+      "error_type": null,
+      "latency_ms": 654.9
+    },
+    {
+      "id": "d064",
+      "text": "امبارح نمت بدري عشان كان عندي امتحان الصبح.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "no_markers"
+      ],
+      "translation": "Yesterday I went to sleep early because I had an exam in the morning.",
+      "error_type": null,
+      "latency_ms": 653.0
+    },
+    {
+      "id": "d065",
+      "text": "نعتذر عن التأخير، وسنرد على استفسارك في أقرب وقت ممكن.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "We apologize for the delay, and we will respond to your inquiry as soon as possible.",
+      "error_type": null,
+      "latency_ms": 758.4
+    },
+    {
+      "id": "d066",
+      "text": "الـ laptop بتاعي عمل restart لوحده ومش راضي يفتح.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "code_switch"
+      ],
+      "translation": "My laptop restarted by itself and won't turn on.",
+      "error_type": null,
+      "latency_ms": 804.7
+    },
+    {
+      "id": "d067",
+      "text": "أين وضعتَ جهاز التحكم بالتلفاز؟",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "Where did you put the TV remote?",
+      "error_type": null,
+      "latency_ms": 647.4
+    },
+    {
+      "id": "d068",
+      "text": "هو انت لسه زعلان منى ولا ايه",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "chat_spelling"
+      ],
+      "translation": "Are you still mad at me or what?",
+      "error_type": null,
+      "latency_ms": 631.6
+    },
+    {
+      "id": "d069",
+      "text": "تعلن إدارة المبنى عن انقطاع المياه يوم السبت من التاسعة صباحًا حتى الثانية ظهرًا. نرجو من السكان تخزين كمية كافية من المياه.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "long"
+      ],
+      "translation": "Building management announces that there will be a water outage on Saturday from 9:00 AM to 2:00 PM. We kindly ask residents to store a sufficient amount of water.",
+      "error_type": null,
+      "latency_ms": 619.6
+    },
+    {
+      "id": "d070",
+      "text": "بعد إذن حضرتك، أنا محتاج أجازة يوم الخميس عشان ظرف عائلي.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "polite"
+      ],
+      "translation": "With your permission, I need to take a day off on Thursday due to a family circumstance.",
+      "error_type": null,
+      "latency_ms": 657.4
+    },
+    {
+      "id": "d071",
+      "text": "اغسل يديك جيدًا قبل تحضير الطعام.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Wash your hands thoroughly before preparing food.",
+      "error_type": null,
+      "latency_ms": 975.5
+    },
+    {
+      "id": "d072",
+      "text": "ليه ما قولتليش إنك جاي؟",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Why didn't you tell me that you were coming?",
+      "error_type": null,
+      "latency_ms": 852.8
+    },
+    {
+      "id": "d073",
+      "text": "القطة تجلس على الأريكة طوال اليوم ولا تفعل شيئًا.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "The cat sits on the sofa all day and does nothing.",
+      "error_type": null,
+      "latency_ms": 868.7
+    },
+    {
+      "id": "d074",
+      "text": "مفيش مشكلة",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "short"
+      ],
+      "translation": "No problem",
+      "error_type": null,
+      "latency_ms": 664.5
+    },
+    {
+      "id": "d075",
+      "text": "تُعد القاهرة من أكبر المدن في أفريقيا والعالم العربي. ويقصدها ملايين السياح كل عام لزيارة الأهرامات والمتحف المصري.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "long"
+      ],
+      "translation": "Cairo is considered one of the largest cities in Africa and the Arab world. Millions of tourists visit it every year to see the pyramids and the Egyptian Museum.",
+      "error_type": null,
+      "latency_ms": 765.9
+    },
+    {
+      "id": "d076",
+      "text": "الشركة هتعمل تخفيض في عدد الموظفين السنة دي.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "The company is going to reduce the number of employees this year.",
+      "error_type": null,
+      "latency_ms": 812.9
+    },
+    {
+      "id": "d077",
+      "text": "أين يمكنني أن أجد أقرب صيدلية؟",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Where can I find the nearest pharmacy?",
+      "error_type": null,
+      "latency_ms": 828.0
+    },
+    {
+      "id": "d078",
+      "text": "هات الشنطة اللي على الترابيزة وتعالى بسرعة.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "no_markers"
+      ],
+      "translation": "Bring the bag that's on the table and come quickly.",
+      "error_type": null,
+      "latency_ms": 694.6
+    },
+    {
+      "id": "d079",
+      "text": "تتوقع الأرصاد الجوية أمطارًا غزيرة على المناطق الساحلية خلال الساعات القادمة.",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Meteorology expects heavy rain in coastal areas during the coming hours.",
+      "error_type": null,
+      "latency_ms": 673.5
+    },
+    {
+      "id": "d080",
+      "text": "متشكر جدًا لحضرتك على مساعدتك، ربنا يكرمك.",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "polite"
+      ],
+      "translation": "Thank you very much for your help, God bless you.",
+      "error_type": null,
+      "latency_ms": 852.6
+    },
+    {
+      "id": "d081",
+      "text": "طيب تمام",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "short"
+      ],
+      "translation": "Okay, fine",
+      "error_type": null,
+      "latency_ms": 869.1
+    },
+    {
+      "id": "d082",
+      "text": "ماشي هات",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "short"
+      ],
+      "translation": "Okay, hand it over",
+      "error_type": null,
+      "latency_ms": 707.4
+    },
+    {
+      "id": "d083",
+      "text": "هو كدا",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "short",
+        "chat_spelling"
+      ],
+      "translation": "That's how it is",
+      "error_type": null,
+      "latency_ms": 1014.5
+    },
+    {
+      "id": "d084",
+      "text": "لسه شوية",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "short",
+        "no_markers"
+      ],
+      "translation": "Not yet",
+      "error_type": null,
+      "latency_ms": 1990.1
+    },
+    {
+      "id": "d085",
+      "text": "خليها عليا المرة دي",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "no_markers"
+      ],
+      "translation": "It's on me this time",
+      "error_type": null,
+      "latency_ms": 589.1
+    },
+    {
+      "id": "d086",
+      "text": "النت فصل عندي",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "short",
+        "no_markers"
+      ],
+      "translation": "My internet got disconnected.",
+      "error_type": null,
+      "latency_ms": 728.3
+    },
+    {
+      "id": "d087",
+      "text": "الشغل النهاردة تقيل أوي",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Work is really heavy today",
+      "error_type": null,
+      "latency_ms": 703.8
+    },
+    {
+      "id": "d088",
+      "text": "نسيت المفتاح جوه الشقة",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "no_markers"
+      ],
+      "translation": "I forgot the key inside the apartment",
+      "error_type": null,
+      "latency_ms": 974.1
+    },
+    {
+      "id": "d089",
+      "text": "الطريق زحمة من الصبح",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "no_markers"
+      ],
+      "translation": "The traffic has been heavy since morning.",
+      "error_type": null,
+      "latency_ms": 804.1
+    },
+    {
+      "id": "d090",
+      "text": "القهوة بردت خالص",
+      "label": "arz",
+      "predicted": "arz",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "The coffee is completely cold.",
+      "error_type": null,
+      "latency_ms": 611.8
+    },
+    {
+      "id": "d091",
+      "text": "سأذهب إلى العمل مبكرا غدا",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "I will go to work early tomorrow",
+      "error_type": null,
+      "latency_ms": 758.1
+    },
+    {
+      "id": "d092",
+      "text": "هل يمكنك إرسال الملف عبر البريد",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "Can you send the file by email?",
+      "error_type": null,
+      "latency_ms": 993.5
+    },
+    {
+      "id": "d093",
+      "text": "الطقس اليوم معتدل وجميل",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "The weather today is mild and beautiful",
+      "error_type": null,
+      "latency_ms": 699.6
+    },
+    {
+      "id": "d094",
+      "text": "أحتاج إلى بعض الوقت لإنهاء المهمة",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "clear"
+      ],
+      "translation": "I need some time to finish the task",
+      "error_type": null,
+      "latency_ms": 633.5
+    },
+    {
+      "id": "d095",
+      "text": "سأشتري بعض الأغراض في طريق العودة",
+      "label": "ar",
+      "predicted": "ar",
+      "outcome": "correct",
+      "tags": [
+        "topic_swap"
+      ],
+      "translation": "I will buy some things on the way back",
+      "error_type": null,
+      "latency_ms": 639.9
+    }
+  ]
+}

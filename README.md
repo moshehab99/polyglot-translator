@@ -121,6 +121,39 @@ uv run pytest tests/test_api.py -q     # one file
 All LLM calls are mocked. The tests need no API key, do not read your `.env`, and
 never touch the network.
 
+## Evaluation
+
+The `evals/` harness checks the hardest part of auto-detection: telling **Modern
+Standard Arabic (`ar`)** apart from **Egyptian Arabic (`arz`)**. It sends every sentence
+of a small labelled dataset through the real app path:
+`Settings -> build_provider -> TranslationService.translate(text, "auto", "en")`.
+It then reports detection accuracy with a 95% Wilson interval, a confusion matrix,
+precision, recall and F1 per label, and accuracy per slice (short texts, Egyptian
+without marker words, code-switching, chat spelling, polite register, and more).
+Translation quality is not measured.
+
+```bash
+uv run python -m evals.dialect --limit 3        # smoke run: 3 real requests
+uv run python -m evals.dialect                  # full run (asks to confirm)
+uv run python -m evals.dialect --baseline evals/results/<earlier>.json
+```
+
+The CLI makes **real API calls** with the key in `.env`. Each run writes a JSON and a
+Markdown report to `evals/results/`, and each report records the prompt fingerprint
+and the dataset hash. pytest never calls the API.
+
+**Baseline (2026-11-18, `gemini-3.5-flash-lite`):** 100% on 95 items (95/95, 95% CI
+96.1–100%). Report:
+[`evals/results/dialect_20261118-030247_gemini_gemini-3.5-flash-lite.md`](evals/results/dialect_20261118-030247_gemini_gemini-3.5-flash-lite.md).
+
+The set is saturated: the current model gets every item right. For now it works as a
+**regression check**: every change to the prompt is measured against it, and a drop
+shows up as "broken" ids in the `--baseline` comparison. Harder sets (e.g. Franco-Arabic)
+will be added in later stages.
+
+The labelling policy, dataset schema, tags, flags and report format are in
+[`evals/README.md`](evals/README.md).
+
 ## API
 
 ### `POST /api/translate`
@@ -198,5 +231,12 @@ app/
     translation_service.py  Input validation, then calls the provider
   templates/                base.html, index.html (Jinja2)
   static/                   css/style.css, js/app.js
+evals/
+  README.md                 What is measured, labelling policy, schema, how to run
+  dataset.py                EvalItem schema, load_dataset, dataset hash
+  metrics.py                Accuracy, Wilson interval, confusion matrix, P/R/F1 (pure)
+  dialect.py                MSA vs Egyptian detection runner and CLI
+  data/dialect.jsonl        Labelled dataset (human-reviewed)
+  results/                  Committed run reports (baseline)
 tests/                      pytest suite, everything mocked
 ```
