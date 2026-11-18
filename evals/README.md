@@ -266,26 +266,29 @@ free-tier API. Never copy dataset sentences into `app/providers/prompts.py`.
 The same word is spelled differently across items, as real people do: 3ayez/aayez,
 msh/mesh/mish, ezayak/izayak, 7aga/haga, dlwa2ty/dlwa2ti/dilwa'ti, enta/ent.
 
-Current composition: 60 items (f001–f060): 45 `arz`, 5 `ar`, 10 controls (4 en, 2 fr,
-2 es, 1 it, 1 de). Split: 40 dev, 20 test (15 arz, 2 ar, 3 controls). A control or `ar`
-item appears roughly every five lines, so a small `--limit` mixes labels.
+Current composition: 80 items: 61 `arz`, 6 `ar`, 13 controls (7 en, 2 fr, 2 es, 1 it,
+1 de). Split: 53 dev, 27 test (20 arz, 3 ar, 4 controls).
+- f001–f060 were drafted. A control or `ar` item appears roughly every five lines in
+  them, so a small `--limit` mixes labels.
+- f061–f080 are human-written (note `human-written`). They are copied verbatim, with
+  emoji, mixed Arabic script and English chat abbreviations (b4, 2mrw) in the controls.
 
 | Tag | arz | ar | control |
 |---|---|---|---|
 | clear | 12 | 1 | 0 |
 | short | 8 | 4 | 1 |
-| numerals | 28 | 3 | 0 |
-| no_numerals | 17 | 2 | 0 |
-| code_switch | 8 | 0 | 0 |
-| chat | 10 | 0 | 5 |
-| ambiguous | 11 | 0 | 2 |
-| shared | 0 | 4 | 0 |
+| numerals | 42 | 4 | 0 |
+| no_numerals | 19 | 2 | 0 |
+| code_switch | 18 | 0 | 0 |
+| chat | 18 | 0 | 7 |
+| ambiguous | 17 | 0 | 2 |
+| shared | 0 | 5 | 0 |
 | long | 6 | 0 | 0 |
-| control | 0 | 0 | 10 |
+| control | 0 | 0 | 13 |
 
 Tests check the real file:
 - `short` means at most 3 words.
-- `numerals` / `no_numerals` match the text.
+- `numerals` / `no_numerals` match the text (ar/arz items only).
 - `long` has at least 2 sentences.
 - Every tag is used at least 3 times.
 - The test split is 25–40% of items and contains arz, ar and controls.

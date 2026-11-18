@@ -68,11 +68,12 @@ def test_short_items_have_at_most_three_words(items: list[FrancoItem]) -> None:
 
 
 def test_numerals_tags_match_the_text(items: list[FrancoItem]) -> None:
+    # Only ar/arz items: English chat controls may use digit+letter tokens (b4, 2mrw).
     for item in items:
         uses_numerals = bool(NUMERAL_LETTER.search(item.text))
         if "numerals" in item.tags:
             assert uses_numerals, item.id
-        if "no_numerals" in item.tags or "control" in item.tags:
+        if "no_numerals" in item.tags:
             assert not uses_numerals, item.id
 
 
