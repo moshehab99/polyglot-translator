@@ -10,6 +10,7 @@ Conventions:
 from __future__ import annotations
 
 import math
+import re
 import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
@@ -95,6 +96,14 @@ def median_latency(values: Iterable[float | None]) -> float | None:
     """Median of the non-None values, or None if there are none."""
     present = [v for v in values if v is not None]
     return statistics.median(present) if present else None
+
+
+_LATIN_WORD = re.compile(r"[A-Za-z0-9]*[A-Za-z][A-Za-z0-9]*")
+
+
+def latin_words(text: str) -> list[str]:
+    """Casefolded tokens with at least one ASCII letter; digits allowed (``3ayez``)."""
+    return [word.casefold() for word in _LATIN_WORD.findall(text)]
 
 
 def summarize(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:

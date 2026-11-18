@@ -156,3 +156,140 @@ names). The `.json` and `.md` files share that name.
 The `.md` file shows the same information as tables and lists every wrong or error item
 with its text. The console shows only an ASCII summary and the two file paths. Result
 files are committed only when the maintainer chooses a run to keep (e.g. the baseline).
+
+## Franco-Arabic (Arabizi): Egyptian Arabic in Latin script
+
+### What is measured
+
+Users type Egyptian Arabic in Latin letters, with digits standing in for some Arabic
+letters: `ana msh fahem enta 3ayez eh`. This eval measures how the **current** app
+handles that input, through the same real path as the dialect eval:
+
+```
+Settings (.env) -> build_provider -> TranslationService.translate(text, "auto", target)
+```
+
+1. **Detection** (every item): `translate(text, "auto", "en")`, or target `"fr"` for
+   items labelled `en`. `detected_source` must equal the label. The English or French
+   output is saved for manual review but not scored.
+2. **Arabization** (ar/arz items only): `translate(text, "auto", item.label)`, so `arz`
+   items go to Egyptian Arabic and `ar` items go to MSA. The output is compared with the
+   item's `arabic` reference:
+   - **chrF** (character n-grams 1..6, beta = 2, 0-100) after Arabic normalisation:
+     tashkeel and tatweel removed, أ/إ/آ -> ا, ة -> ه, ى -> ي, punctuation dropped,
+     spaces collapsed.
+   - **Latin leak**: the output contains a Latin-script word that is not in the
+     reference.
+
+Controls (real English/French/Spanish/... text) only get the detection pass. A control
+detected as `ar`/`arz` is a false positive.
+
+### Labelling policy
+
+The labels apply the dialect policy above to Latin-script text.
+
+- **`arz`**: the text has clear Egyptian features, written in Latin script. These include
+  negation (msh/mesh, ma...sh), verb prefixes (b-, ha-), pronouns (enta, enty, e7na),
+  question words (eh, leh, fen, ezay, emta) and Egyptian vocabulary (3ayez, keda,
+  delwa2ty, 7aga, bokra). This applies even when English words are mixed in.
+- **`ar`**: Latin-script Arabic without Egyptian features. That includes greetings and
+  religious phrases both varieties use (inshallah, el7amdulellah, salamo 3aleko,
+  ramadan kareem), tagged `shared`, the same rule as the dialect set.
+- **Controls** (`en`, `fr`, `it`, `de`, `es`): real text in that language, not Franco,
+  tagged `control`. The label is its language. Some controls deliberately contain
+  words that are also Franco words (law, mesh) and are tagged `ambiguous`.
+
+**The `arabic` reference** is a faithful transliteration of exactly what was written, in
+normal Egyptian spelling:
+- No rephrasing and no correcting.
+- Follow the writer's choices: 3ayez -> عايز, 3awez -> عاوز.
+- English words inside the text stay in Latin script as written. The loader rejects any
+  Latin word in `arabic` that does not occur in `text`.
+- Chat abbreviations are written out in normal spelling: msh -> مش, m3lsh -> معلش,
+  isa -> إن شاء الله.
+- Elongation is written once: ahhhh -> آه.
+- Real numbers stay as digits.
+
+A label or reference changes only if it breaks this policy, **never to match the
+model's output**. The commit that changes labels or references lists which ids changed
+and why.
+
+**Splits.** About one third of the items are `test`. Prompt work may only look at `dev`
+failures. `test` is reported in every run but never used for tuning.
+
+### Dataset schema: `data/franco.jsonl`
+
+UTF-8 without BOM, one JSON object per line:
+
+```json
+{"id": "f001", "text": "ana msh fahem enta 3ayez eh", "label": "arz", "arabic": "أنا مش فاهم إنت عايز إيه", "meaning": "I don't understand what you want", "tags": ["clear", "numerals"], "split": "dev", "note": "optional"}
+```
+
+| Field | Rules |
+|---|---|
+| `id` | `f` + 3 or more digits. Never renumbered or reused; new items are appended. |
+| `text` | One line, no leading or trailing whitespace, unique (after whitespace normalisation). |
+| `label` | `arz`, `ar`, `en`, `fr`, `it`, `de` or `es`: the expected `detected_source`. |
+| `arabic` | Required for `ar`/`arz`, absent for controls. It must contain Arabic letters, and its Latin words must all occur in `text`. |
+| `meaning` | Short English gloss. Required for `ar`/`arz`, absent for controls. For review only, not scored. |
+| `tags` | At least one, from the fixed vocabulary below. An unknown tag is a loading error. |
+| `split` | `dev` or `test`. |
+| `note` | Optional free text for reviewers. It is not part of the dataset hash. |
+
+Cross-field rules, enforced by the loader:
+- `control` is present exactly when the label is not `ar`/`arz`.
+- `shared` requires `ar`.
+- Every `ar`/`arz` item has exactly one of `numerals` / `no_numerals`.
+- Controls have neither of them.
+
+Duplicate ids or texts, a BOM, or a malformed line are errors that name `file:line`.
+The dataset hash covers every field except `note`.
+
+No real names, phone numbers or personal data: the file is public and is sent to a
+free-tier API. Never copy dataset sentences into `app/providers/prompts.py`.
+
+### Tags
+
+| Tag | Meaning |
+|---|---|
+| `clear` | Clear, typical example |
+| `short` | 1–3 words |
+| `numerals` | Uses digits for letters: 2 ء/ق, 3 ع, 5 خ, 7 ح, 8 غ, 9 ق |
+| `no_numerals` | Letters only, e.g. `a` for ع, `kh`, `gh`, `'` for ق |
+| `code_switch` | English words inside |
+| `chat` | Abbreviations, dropped vowels, elongation: msh, m3lsh, isa, ahhhh |
+| `ambiguous` | Contains words that are also real English/French words: law, bas, ana, mesh, men, fen |
+| `shared` | Religious or greeting phrase used by both varieties (always `ar`) |
+| `long` | 2–3 sentences |
+| `control` | Not Franco: real English/French/Spanish/... text; label = its language |
+
+The same word is spelled differently across items, as real people do: 3ayez/aayez,
+msh/mesh/mish, ezayak/izayak, 7aga/haga, dlwa2ty/dlwa2ti/dilwa'ti, enta/ent.
+
+Current composition: 60 items (f001–f060): 45 `arz`, 5 `ar`, 10 controls (4 en, 2 fr,
+2 es, 1 it, 1 de). Split: 40 dev, 20 test (15 arz, 2 ar, 3 controls). A control or `ar`
+item appears roughly every five lines, so a small `--limit` mixes labels.
+
+| Tag | arz | ar | control |
+|---|---|---|---|
+| clear | 12 | 1 | 0 |
+| short | 8 | 4 | 1 |
+| numerals | 28 | 3 | 0 |
+| no_numerals | 17 | 2 | 0 |
+| code_switch | 8 | 0 | 0 |
+| chat | 10 | 0 | 5 |
+| ambiguous | 11 | 0 | 2 |
+| shared | 0 | 4 | 0 |
+| long | 6 | 0 | 0 |
+| control | 0 | 0 | 10 |
+
+Tests check the real file:
+- `short` means at most 3 words.
+- `numerals` / `no_numerals` match the text.
+- `long` has at least 2 sentences.
+- Every tag is used at least 3 times.
+- The test split is 25–40% of items and contains arz, ar and controls.
+
+```
+uv run pytest tests/test_franco_dataset.py -q
+```

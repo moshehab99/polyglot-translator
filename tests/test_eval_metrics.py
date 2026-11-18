@@ -8,6 +8,7 @@ from evals.metrics import (
     accuracy,
     column_for,
     confusion_matrix,
+    latin_words,
     median_latency,
     per_label_prf,
     per_tag_accuracy,
@@ -132,3 +133,9 @@ def test_summarize_empty() -> None:
     assert summary["accuracy_ci95"] == [0.0, 0.0]
     assert summary["median_latency_ms"] is None
     assert summary["per_tag"] == {}
+
+
+def test_latin_words() -> None:
+    assert latin_words("الـ Meeting اتأجل, 3ayez upload!") == ["meeting", "3ayez", "upload"]
+    assert latin_words("أنا 25 سنة") == []
+    assert latin_words("") == []
