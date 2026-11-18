@@ -148,11 +148,49 @@ and the dataset hash. pytest never calls the API.
 
 The set is saturated: the current model gets every item right. For now it works as a
 **regression check**: every change to the prompt is measured against it, and a drop
-shows up as "broken" ids in the `--baseline` comparison. Harder sets (e.g. Franco-Arabic)
-will be added in later stages.
+shows up as "broken" ids in the `--baseline` comparison.
 
-The labelling policy, dataset schema, tags, flags and report format are in
-[`evals/README.md`](evals/README.md).
+### Franco-Arabic (Arabizi)
+
+A second eval measures Egyptian Arabic typed in Latin script (`ana msh fahem enta
+3ayez eh`). It has two passes:
+- **Detection**: `auto -> en` must report `arz`. Controls in other languages must not
+  be reported as Arabic.
+- **Arabization**: `auto -> arz` (or `ar`) is compared with a hand-written Arabic-script
+  reference. The scores are chrF (0–100, after Arabic normalisation) and a Latin-leak
+  check.
+
+The dataset has 80 items (61 arz, 6 ar, 13 controls), split into dev and test.
+
+```bash
+uv run python -m evals.franco --limit 3         # smoke run: 5 real requests
+uv run python -m evals.franco                   # full run: 147 requests (asks to confirm)
+uv run python -m evals.franco --baseline evals/results/franco_20261118-080836_gemini_gemini-3.5-flash-lite.json
+```
+
+**Baseline (2026-11-18, `gemini-3.5-flash-lite`, current app with no Franco-specific
+changes):**
+- **Detection: 77/80 = 96.2%** (95% CI 89.5–98.7%).
+  - All 61 arz items are correct.
+  - 0/13 controls were falsely detected as Arabic, including English chat with
+    b4/2mrw/law/mesh.
+  - The 3 misses are all shared phrases (f017, f029, f076) predicted `arz`. That is a
+    labelling-policy edge, not a Franco weakness. The labels stay as they are.
+- **Arabization: mean chrF 84.9** (dev 85.3, test 84.2), Latin leak 1/67.
+  - Pure Franco is near-perfect: `clear` 97.9, `no_numerals` 95.7.
+  - Code-switching is the weak spot (chrF 52.0). `auto -> arz` translates English words
+    into Arabic (meeting -> الاجتماع, file -> الملف) instead of keeping them, because
+    the app only translates and has no script-conversion mode.
+  - Other misses: one copy-through with no conversion (f072), one wrong word (f055),
+    and spelling drift (3ayez -> عاوز).
+- chrF is strict on short sentences: one changed letter can cost ~20 points. Read the
+  review table in the report, not only the mean.
+
+Report:
+[`evals/results/franco_20261118-080836_gemini_gemini-3.5-flash-lite.md`](evals/results/franco_20261118-080836_gemini_gemini-3.5-flash-lite.md).
+
+The labelling policies, dataset schemas, tags, flags and report formats of both evals are
+in [`evals/README.md`](evals/README.md).
 
 ## API
 

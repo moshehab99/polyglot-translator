@@ -329,7 +329,7 @@ uv run python -m evals.franco --limit 3            # smoke run: f001-f003 = 5 re
 uv run python -m evals.franco                      # full run (asks to confirm)
 uv run python -m evals.franco --split dev          # dev only (for prompt work)
 uv run python -m evals.franco --tag no_numerals    # one slice
-uv run python -m evals.franco --baseline evals/results/<earlier franco>.json
+uv run python -m evals.franco --baseline evals/results/franco_20261118-080836_gemini_gemini-3.5-flash-lite.json
 ```
 
 | Flag | Default | Meaning |
@@ -387,3 +387,46 @@ The `.md` file has:
 ```
 uv run pytest tests/test_franco_dataset.py tests/test_franco_runner.py tests/test_eval_metrics.py -q
 ```
+
+### Baseline
+
+Recorded 2026-11-18 with `gemini-3.5-flash-lite` on the current app, which has no
+Franco-specific changes:
+- Git commit `2753347`, all 80 items, 147 requests, not partial.
+- Prompt fingerprints: en `2ac34465d2fb`, fr `f081acbcb4e6`, ar `6760617d77bd`,
+  arz `572d36e53152`.
+- Dataset sha256 `5c5f40061ec0…`.
+- Report:
+  [`results/franco_20261118-080836_gemini_gemini-3.5-flash-lite.md`](results/franco_20261118-080836_gemini_gemini-3.5-flash-lite.md).
+
+**Detection: 77/80 = 96.2%** (95% CI 89.5–98.7%), with no errors.
+- All 61 arz items are correct.
+- Controls falsely detected as Arabic: 0/13, including English chat with b4/2mrw/law/mesh.
+- The 3 misses are all `shared` phrases (f017, f029, f076) predicted `arz`. That is a
+  labelling-policy edge, not a Franco weakness. The labels stay as they are.
+
+**Arabization: mean chrF 84.9** (dev 85.3, test 84.2). Latin leak: 1/67. No errors.
+
+| Tag | Mean chrF |
+|---|---:|
+| clear | 97.9 |
+| no_numerals | 95.7 |
+| ambiguous | 91.3 |
+| long | 91.0 |
+| chat | 82.6 |
+| numerals | 80.0 |
+| code_switch | 52.0 |
+
+- Pure Franco is near-perfect.
+- Code-switching is the weak spot. `auto -> arz` translates English words into Arabic
+  (meeting -> الاجتماع, file -> الملف) instead of keeping them as written, because the
+  app only translates and has no script-conversion mode.
+- Other misses:
+  - One copy-through with no conversion (f072, also the only Latin leak).
+  - One wrong word (f055).
+  - Spelling drift (3ayez -> عاوز).
+- chrF is strict on short sentences: one changed letter can cost ~20 points. Read the
+  review table in the report, not only the mean.
+
+Every Franco prompt or feature change is measured with `--baseline` against this run.
+Tuning may only look at `dev` failures. `test` is reported, never tuned on.
