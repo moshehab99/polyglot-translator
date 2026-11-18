@@ -199,10 +199,11 @@ The labels apply the dialect policy above to Latin-script text.
   tagged `control`. The label is its language. Some controls deliberately contain
   words that are also Franco words (law, mesh) and are tagged `ambiguous`.
 
-**The `arabic` reference** is a faithful transliteration of exactly what was written, in
-normal Egyptian spelling:
-- No rephrasing and no correcting.
-- Follow the writer's choices: 3ayez -> عايز, 3awez -> عاوز.
+**The `arabic` reference** is the word the writer meant, spelled normally in Egyptian
+spelling: b7d -> بجد, 7a2olak -> هقولك.
+- Fix letter slips, but never rephrase, reorder, or add words beyond what the writer
+  meant.
+- Follow the writer's word choices: 3ayez -> عايز, 3awez -> عاوز.
 - English words inside the text stay in Latin script as written. The loader rejects any
   Latin word in `arabic` that does not occur in `text`.
 - Chat abbreviations are written out in normal spelling: msh -> مش, m3lsh -> معلش,
@@ -295,4 +296,94 @@ Tests check the real file:
 
 ```
 uv run pytest tests/test_franco_dataset.py -q
+```
+
+### Metrics
+
+- **Detection**:
+  - Accuracy with a 95% Wilson interval. Errors stay in the denominator.
+  - A confusion matrix with rows = labels present and columns = the 7 codes, `other`
+    and `error`.
+  - The control false-positive rate (controls detected as `ar`/`arz`) with a Wilson
+    interval.
+- **Arabization**:
+  - chrF is computed on both sides after normalisation, as described above:
+    - Character n-grams of order 1..6 with whitespace removed.
+    - Precision and recall are averaged over the orders where both sides have n-grams.
+    - Then F with beta = 2 (recall weighted more), scaled to 0–100.
+  - Latin leak means the raw output has a Latin-script token (letters, optionally with
+    digits, so a leaked `3ayez` counts) that the reference does not have. Case is
+    ignored.
+  - **Errors are not scored.** Mean chrF and the leak rate cover successful outputs
+    only, and the arabization error count is reported next to them.
+- All of these are reported per tag and per split, along with the median latency of
+  each pass.
+
+### How to run
+
+The CLI makes **real API calls** with the provider and key set in `.env`. Each `ar`/`arz`
+item sends 2 requests (detection + arabization) and each control sends 1, one at a time.
+
+```
+uv run python -m evals.franco --limit 3            # smoke run: f001-f003 = 5 requests
+uv run python -m evals.franco                      # full run (asks to confirm)
+uv run python -m evals.franco --split dev          # dev only (for prompt work)
+uv run python -m evals.franco --tag no_numerals    # one slice
+uv run python -m evals.franco --baseline evals/results/<earlier franco>.json
+```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--limit N` | all | Only the first N items, applied after `--tag` and `--split` |
+| `--tag TAG` | none | Only items with this tag |
+| `--split S` | none | Only `dev` or only `test` items |
+| `--model M` | from `.env` | Overrides the active provider's model |
+| `--dataset PATH` | `evals/data/franco.jsonl` | Dataset file |
+| `--baseline PATH` | none | Earlier **franco** result JSON to compare against |
+| `--delay S` | 4 | Seconds between requests |
+| `--retry-wait S` | 60 | Seconds to wait after a rate limit before retrying |
+| `--out-dir PATH` | `evals/results` | Where reports go |
+| `--yes` | off | Skips the confirmation prompt shown for more than 10 **requests** |
+
+There is no `--target`, because the targets are fixed by design.
+
+Rate limits, auth errors, other provider errors and exit codes work as in the dialect
+eval. One difference: if the rate limit persists in the middle of an item, that item's
+half-done result is dropped and counted in `not_run`.
+
+### Reading a report
+
+The files are named `franco_<YYYYMMDD-HHMMSS>_<provider>_<model>.json` / `.md`.
+
+- **`meta`**:
+  - `eval: "franco"`, UTC time, dataset path, sha256 and size, provider and model.
+  - `prompt_fingerprint`: one short sha256 per target (`en`, `fr`, `ar`, `arz`).
+  - git commit, filters (tag, split, limit), `requests_planned`, and `partial` /
+    `stop_reason` / `not_run`.
+- **`summary`**: everything listed under Metrics. It is computed from `items` alone,
+  so a saved run can be re-scored with `franco.summarize_franco(report["items"])`
+  without new API calls.
+- **`items`**: the dataset fields plus every raw output:
+  - Detection: `detect_target`, `predicted`, `outcome`, `translation` (the en/fr
+    output), `detect_error_type`, `detect_latency_ms`.
+  - Arabization: `arabize_target`, `arabic_output`, `arabic_detected`,
+    `arabize_error_type`, `arabize_latency_ms`.
+  - Scores: `chrf`, `latin_leak`.
+- **`baseline`** (only with `--baseline`):
+  - Detection: items fixed and broken.
+  - Mean chrF and leak rate, before -> after.
+  - Ids with a new or fixed Latin leak.
+  - Whether the prompt fingerprints or the dataset hash changed.
+
+The `.md` file has:
+- Run, detection, confusion-matrix and arabization sections.
+- Per-split and per-tag tables.
+- The wrong detections.
+- A **review table** for every ar/arz item:
+  `id | text | arabic ref | arz output | chrF | en output | meaning`. A `*` after chrF
+  marks a Latin leak.
+- A controls table.
+
+```
+uv run pytest tests/test_franco_dataset.py tests/test_franco_runner.py tests/test_eval_metrics.py -q
 ```

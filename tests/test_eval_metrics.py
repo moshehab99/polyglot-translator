@@ -7,8 +7,13 @@ import pytest
 from evals.metrics import (
     accuracy,
     column_for,
+    char_ngrams,
+    chrf,
     confusion_matrix,
+    latin_leak,
     latin_words,
+    mean,
+    normalize_arabic,
     median_latency,
     per_label_prf,
     per_tag_accuracy,
@@ -139,3 +144,95 @@ def test_latin_words() -> None:
     assert latin_words("الـ Meeting اتأجل, 3ayez upload!") == ["meeting", "3ayez", "upload"]
     assert latin_words("أنا 25 سنة") == []
     assert latin_words("") == []
+
+
+def test_confusion_matrix_custom_labels_and_columns() -> None:
+    columns = ("arz", "ar", "en", "fr", "other", "error")
+    cm = confusion_matrix(
+        [("arz", "arz"), ("arz", "en"), ("en", "en"), ("en", "arz"), ("fr", None), ("fr", "de")],
+        labels=("arz", "en", "fr"),
+        columns=columns,
+    )
+    assert cm["arz"] == {"arz": 1, "ar": 0, "en": 1, "fr": 0, "other": 0, "error": 0}
+    assert cm["en"] == {"arz": 1, "ar": 0, "en": 1, "fr": 0, "other": 0, "error": 0}
+    assert cm["fr"] == {"arz": 0, "ar": 0, "en": 0, "fr": 0, "other": 1, "error": 1}
+    with pytest.raises(ValueError, match="unknown gold label"):
+        confusion_matrix([("es", "es")], labels=("arz",), columns=columns)
+
+
+def test_mean() -> None:
+    assert mean([100.0, None, 50.0]) == pytest.approx(75.0)
+    assert mean([None]) is None
+    assert mean([]) is None
+
+
+# --- Franco arabization ------------------------------------------------------------
+
+
+def test_normalize_arabic() -> None:
+    # tashkeel and tatweel removed
+    assert normalize_arabic("مُحَمَّدٌ") == "محمد"
+    assert normalize_arabic("جـــدا") == "جدا"
+    # alef forms, taa marbuta, alef maqsura
+    assert normalize_arabic("أنا إنت آه ٱلله") == "انا انت اه الله"
+    assert normalize_arabic("حاجة حلوة") == "حاجه حلوه"
+    assert normalize_arabic("على إمتى") == "علي امتي"
+    # punctuation dropped (Arabic and Latin), spaces collapsed, Latin casefolded
+    assert normalize_arabic("إنت فين؟  أنا، هنا!") == "انت فين انا هنا"
+    assert normalize_arabic("الـ Meeting (T-shirt)؛") == "ال meeting tshirt"
+    # emoji are not punctuation and stay
+    assert normalize_arabic("حر 🥵") == "حر 🥵"
+
+
+def test_char_ngrams_ignore_whitespace() -> None:
+    assert char_ngrams("ab c", 2) == {"ab": 1, "bc": 1}
+    assert char_ngrams("ab", 3) == {}
+
+
+def test_chrf_identical_is_100() -> None:
+    assert chrf("أنا مش فاهم", "أنا مش فاهم") == pytest.approx(100.0)
+    assert chrf("abc", "a b c") == pytest.approx(100.0)  # whitespace is ignored
+
+
+def test_chrf_nothing_shared_is_0() -> None:
+    assert chrf("abc", "xyz") == 0.0
+    assert chrf("ana msh fahem", "أنا مش فاهم") == 0.0
+
+
+def test_chrf_hand_computed_equal_p_and_r() -> None:
+    """hyp "abcd", ref "abce" (beta 2, orders 1..6).
+
+    n=1: 3 of 4 match -> P = R = 3/4
+    n=2: ab, bc match of 3 -> P = R = 2/3
+    n=3: abc matches of 2 -> P = R = 1/2
+    n=4: abcd vs abce -> P = R = 0
+    n=5, 6: no n-grams on either side, skipped (effective order 4)
+    P = R = (3/4 + 2/3 + 1/2 + 0) / 4 = 23/48, so F = 23/48 = 47.9167
+    """
+    assert chrf("abcd", "abce") == pytest.approx(100 * 23 / 48)
+
+
+def test_chrf_hand_computed_beta_weights_recall() -> None:
+    """hyp "ab", ref "abc" (beta 2).
+
+    n=1: P = 2/2, R = 2/3; n=2: P = 1/1, R = 1/2; n>=3: hyp has none, skipped.
+    P = 1, R = (2/3 + 1/2) / 2 = 7/12
+    F = (1 + 4) * 1 * 7/12 / (4 * 1 + 7/12) = (35/12) / (55/12) = 7/11 = 63.6364
+    """
+    assert chrf("ab", "abc") == pytest.approx(100 * 7 / 11)
+
+
+def test_chrf_empty_inputs() -> None:
+    assert chrf("", "") == 100.0
+    assert chrf("", "abc") == 0.0
+    assert chrf("abc", "  ") == 0.0
+
+
+def test_latin_leak() -> None:
+    reference = "الـ meeting اتأجل لبكرة"
+    assert latin_leak("الـ meeting اتأجل لبكرة", reference) is False
+    assert latin_leak("الـ Meeting اتأجل", reference) is False  # case-insensitive
+    assert latin_leak("الميتنج اتأجل", reference) is False  # dropping a Latin word is fine
+    assert latin_leak("الـ meeting et2agel لبكرة", reference) is True
+    assert latin_leak("أنا 3ayez", "أنا عايز") is True
+    assert latin_leak("عندي 25 سنة", "عندي ٢٥ سنة") is False  # digits alone are not words
