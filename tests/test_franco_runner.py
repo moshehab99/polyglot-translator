@@ -101,6 +101,9 @@ class ScriptedProvider(TranslationProvider):
         code = self.detect.get(text, "en")
         return TranslationResult(translation=translation, detected_source=get_language(code))
 
+    async def to_arabic_script(self, text: str) -> str:
+        raise AssertionError("this eval never calls script conversion")
+
 
 class SleepSpy:
     def __init__(self) -> None:

@@ -7,7 +7,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from app.api.deps import Settings, get_settings, get_translation_service
-from app.api.schemas import ErrorResponse, HealthResponse, TranslateRequest, TranslateResponse
+from app.api.schemas import (
+    ArabicScriptRequest,
+    ArabicScriptResponse,
+    ErrorResponse,
+    HealthResponse,
+    TranslateRequest,
+    TranslateResponse,
+)
 from app.languages import get_language
 from app.services.translation_service import TranslationService
 
@@ -40,3 +47,12 @@ async def translate(
         source_rtl=result.detected_source.rtl,
         target_rtl=target.rtl,
     )
+
+
+@router.post("/arabic-script", response_model=ArabicScriptResponse, responses=_ERROR_RESPONSES)
+async def arabic_script(
+    body: ArabicScriptRequest,
+    service: Annotated[TranslationService, Depends(get_translation_service)],
+) -> ArabicScriptResponse:
+    """Write Franco-Arabic in Arabic script; other words, digits and emoji stay as written."""
+    return ArabicScriptResponse(result=await service.to_arabic_script(body.text))

@@ -7,10 +7,10 @@ keyword arguments, and the returned ``Interaction`` exposes ``output_text``.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeVar
 
 from google.genai import errors as genai_errors
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from app.languages import Language, get_language
 from app.logging import get_logger
@@ -23,10 +23,17 @@ from app.providers.base import (
     TranslationProvider,
     TranslationResult,
 )
-from app.providers.prompts import build_system_prompt, build_user_message
-from app.providers.schemas import TranslationOutput, translation_json_schema
+from app.providers.prompts import (
+    build_script_system_prompt,
+    build_script_user_message,
+    build_system_prompt,
+    build_user_message,
+)
+from app.providers.schemas import ScriptOutput, TranslationOutput, json_schema_for
 
 logger = get_logger("providers.gemini")
+
+_Output = TypeVar("_Output", bound=BaseModel)
 
 _AUTH_STATUS_CODES = frozenset({401, 403})
 _INVALID_KEY_REASON = "API_KEY_INVALID"
@@ -44,15 +51,37 @@ class GeminiProvider(TranslationProvider):
     async def translate(
         self, text: str, source: Language | None, target: Language
     ) -> TranslationResult:
+        output = await self._generate(
+            build_system_prompt(source, target),
+            build_user_message(text, source, target),
+            TranslationOutput,
+        )
+        translation = output.translation.strip()
+        if not translation:
+            raise ProviderBadOutputError("empty translation", provider=self.name)
+        detected = source if source is not None else get_language(output.detected_source)
+        return TranslationResult(translation=translation, detected_source=detected)
+
+    async def to_arabic_script(self, text: str) -> str:
+        output = await self._generate(
+            build_script_system_prompt(), build_script_user_message(text), ScriptOutput
+        )
+        converted = output.converted.strip()
+        if not converted:
+            raise ProviderBadOutputError("empty conversion", provider=self.name)
+        return converted
+
+    async def _generate(self, system: str, user: str, output_model: type[_Output]) -> _Output:
+        """One structured-output request: SDK errors mapped, output parsed into ``output_model``."""
         try:
             interaction = await self._client.aio.interactions.create(
                 model=self._model,
-                system_instruction=build_system_prompt(source, target),
-                input=build_user_message(text, source, target),
+                system_instruction=system,
+                input=user,
                 response_format={
                     "type": "text",
                     "mime_type": "application/json",
-                    "schema": translation_json_schema(),
+                    "schema": json_schema_for(output_model),
                 },
                 store=False,
                 timeout=self._timeout_s,
@@ -62,7 +91,18 @@ class GeminiProvider(TranslationProvider):
         except Exception as exc:
             raise self._map_exception(exc) from exc
 
-        return self._parse(interaction, source)
+        raw = getattr(interaction, "output_text", None)
+        if not raw:
+            status = getattr(interaction, "status", None)
+            raise ProviderBadOutputError(
+                f"empty output_text (status={status!r})", provider=self.name
+            )
+        try:
+            return output_model.model_validate_json(raw)
+        except ValidationError as exc:
+            raise ProviderBadOutputError(
+                f"invalid structured output: {exc.errors()[:3]}", provider=self.name
+            ) from exc
 
     def _map_exception(self, exc: Exception) -> ProviderError:
         """Classify any failure raised by the SDK.
@@ -92,26 +132,6 @@ class GeminiProvider(TranslationProvider):
         if code in _AUTH_STATUS_CODES or _is_invalid_api_key(code, message, payload):
             return ProviderAuthError(detail, provider=self.name)
         return ProviderUnavailableError(detail, provider=self.name)
-
-    def _parse(self, interaction: Any, source: Language | None) -> TranslationResult:
-        raw = getattr(interaction, "output_text", None)
-        if not raw:
-            status = getattr(interaction, "status", None)
-            raise ProviderBadOutputError(
-                f"empty output_text (status={status!r})", provider=self.name
-            )
-        try:
-            output = TranslationOutput.model_validate_json(raw)
-        except ValidationError as exc:
-            raise ProviderBadOutputError(
-                f"invalid structured output: {exc.errors()[:3]}", provider=self.name
-            ) from exc
-
-        translation = output.translation.strip()
-        if not translation:
-            raise ProviderBadOutputError("empty translation", provider=self.name)
-        detected = source if source is not None else get_language(output.detected_source)
-        return TranslationResult(translation=translation, detected_source=detected)
 
 
 def _is_invalid_api_key(code: int, message: str, payload: Any) -> bool:

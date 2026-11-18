@@ -56,3 +56,35 @@ async def test_provider_errors_propagate_untouched() -> None:
     provider = FakeProvider(error=ProviderRateLimitError("quota", provider="fake"))
     with pytest.raises(ProviderRateLimitError):
         await make_service(provider).translate("hi", "auto", "en")
+
+
+# --- to_arabic_script ------------------------------------------------------------
+
+
+async def test_to_arabic_script_strips_and_delegates() -> None:
+    provider = FakeProvider(script_result="الـ laptop وقع")
+    result = await make_service(provider).to_arabic_script("  il laptop w2e3 \n")
+    assert result == "الـ laptop وقع"
+    assert provider.script_calls == ["il laptop w2e3"]
+    assert provider.calls == []
+
+
+@pytest.mark.parametrize("text", ["", "   ", "\n\t"])
+async def test_to_arabic_script_rejects_empty_text(text: str) -> None:
+    provider = FakeProvider()
+    with pytest.raises(TranslationValidationError, match="enter some text"):
+        await make_service(provider).to_arabic_script(text)
+    assert provider.script_calls == []
+
+
+async def test_to_arabic_script_rejects_too_long_text_after_strip() -> None:
+    service = make_service(max_chars=5)
+    await service.to_arabic_script("  abcde  ")  # exactly max after strip is fine
+    with pytest.raises(TranslationValidationError, match="too long: 6 characters \\(maximum 5\\)"):
+        await service.to_arabic_script("abcdef")
+
+
+async def test_to_arabic_script_provider_errors_propagate() -> None:
+    provider = FakeProvider(error=ProviderRateLimitError("quota", provider="fake"))
+    with pytest.raises(ProviderRateLimitError):
+        await make_service(provider).to_arabic_script("hi")

@@ -200,3 +200,58 @@ def test_unexpected_exception_returns_500_generic(caplog: pytest.LogCaptureFixtu
     assert response.json() == {"detail": "Unexpected server error."}
     assert "secret internal state" not in response.text
     assert "secret internal state" in caplog.text
+
+
+# --- arabic-script ------------------------------------------------------------------
+
+
+def test_arabic_script_returns_result(client: TestClient, fake_provider: FakeProvider) -> None:
+    fake_provider.script_result = "الـ laptop وقع"
+    response = client.post("/api/arabic-script", json={"text": "  il laptop w2e3 "})
+    assert response.status_code == 200
+    assert response.json() == {"result": "الـ laptop وقع"}
+    assert fake_provider.script_calls == ["il laptop w2e3"]
+    assert fake_provider.calls == []
+
+
+@pytest.mark.parametrize(
+    ("payload", "fragment"), [({}, "text"), ({"text": "   "}, "enter some text")]
+)
+def test_arabic_script_validation_returns_422(
+    client: TestClient, fake_provider: FakeProvider, payload: dict, fragment: str
+) -> None:
+    response = client.post("/api/arabic-script", json=payload)
+    assert response.status_code == 422
+    assert set(response.json()) == {"detail"}
+    assert fragment in response.json()["detail"]
+    assert fake_provider.script_calls == []
+
+
+def test_arabic_script_too_long_uses_configured_limit() -> None:
+    provider = FakeProvider()
+    with client_with(provider, max_chars=10) as client:
+        response = client.post("/api/arabic-script", json={"text": "x" * 11})
+    assert response.status_code == 422
+    assert "maximum 10" in response.json()["detail"]
+    assert provider.script_calls == []
+
+
+@pytest.mark.parametrize(
+    ("error", "status", "message"),
+    [
+        (ProviderRateLimitError("quota for project 42", provider="fake"), 429, RATE_LIMIT_MESSAGE),
+        (ProviderAuthError(SECRET_UPSTREAM, provider="fake"), 503, UNAVAILABLE_MESSAGE),
+        (ProviderUnavailableError("HTTP 503 upstream down", provider="fake"), 503, UNAVAILABLE_MESSAGE),
+        (ProviderBadOutputError("invalid structured output", provider="fake"), 502, BAD_OUTPUT_MESSAGE),
+    ],
+)
+def test_arabic_script_provider_errors_follow_error_policy(
+    error: Exception, status: int, message: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    with client_with(FakeProvider(error=error)) as client, caplog.at_level(logging.WARNING):
+        response = client.post("/api/arabic-script", json={"text": "sa7by"})
+    assert response.status_code == status
+    assert response.json() == {"detail": message}
+    for secret in ("project 42", "sk-REAL", "upstream", "structured"):
+        assert secret not in response.text
+    assert str(error) in caplog.text

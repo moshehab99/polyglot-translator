@@ -13,6 +13,7 @@ from app.providers.base import (
     ProviderUnavailableError,
 )
 from app.providers.gemini_provider import GeminiProvider
+from app.providers.prompts import build_script_system_prompt, build_script_user_message
 
 EN = get_language("en")
 ARZ = get_language("arz")
@@ -249,3 +250,52 @@ async def test_interactions_connection_and_timeout_errors_are_unavailable() -> N
         with pytest.raises(ProviderUnavailableError) as exc_info:
             await GeminiProvider(client=client, model="m").translate("x", None, EN)
         assert type(exc).__name__ in exc_info.value.detail
+
+
+# --- to_arabic_script ------------------------------------------------------------
+
+
+async def test_to_arabic_script_sends_script_prompt_and_one_field_schema() -> None:
+    client = make_client(interaction('{"converted": "  الـ laptop وقع  "}'))
+    provider = GeminiProvider(client=client, model="m", timeout_s=7)
+
+    result = await provider.to_arabic_script("il laptop w2e3")
+
+    assert result == "الـ laptop وقع"
+    kwargs = client.aio.interactions.create.await_args.kwargs
+    assert kwargs["system_instruction"] == build_script_system_prompt()
+    assert kwargs["input"] == build_script_user_message("il laptop w2e3")
+    assert kwargs["store"] is False
+    assert kwargs["timeout"] == 7
+    assert kwargs["response_format"]["mime_type"] == "application/json"
+    schema = kwargs["response_format"]["schema"]
+    assert schema["required"] == ["converted"]
+    assert set(schema["properties"]) == {"converted"}
+    assert schema["additionalProperties"] is False
+
+
+@pytest.mark.parametrize(
+    "text", [None, "", "not json", '{"translation": "x"}', '{"converted": "   "}']
+)
+async def test_to_arabic_script_bad_output_variants(text: str | None) -> None:
+    client = make_client(interaction(text))
+    with pytest.raises(ProviderBadOutputError):
+        await GeminiProvider(client=client, model="m").to_arabic_script("x")
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected"),
+    [
+        (client_error(429), ProviderRateLimitError),
+        (client_error(401), ProviderAuthError),
+        (client_error(400, "API key not valid. Please pass a valid API key."), ProviderAuthError),
+        (client_error(400), ProviderUnavailableError),
+        (ConnectionError("dns"), ProviderUnavailableError),
+    ],
+)
+async def test_to_arabic_script_shares_error_mapping(
+    exc: Exception, expected: type[Exception]
+) -> None:
+    client = make_client(side_effect=exc)
+    with pytest.raises(expected):
+        await GeminiProvider(client=client, model="m").to_arabic_script("x")

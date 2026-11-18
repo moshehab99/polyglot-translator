@@ -49,11 +49,14 @@ class FakeProvider(TranslationProvider):
         translation: str = "TRANSLATED",
         detected: str = "en",
         error: Exception | None = None,
+        script_result: str = "نص عربي",
     ) -> None:
         self.translation = translation
         self.detected = detected
         self.error = error
+        self.script_result = script_result
         self.calls: list[tuple[str, Language | None, Language]] = []
+        self.script_calls: list[str] = []
 
     async def translate(
         self, text: str, source: Language | None, target: Language
@@ -63,6 +66,12 @@ class FakeProvider(TranslationProvider):
             raise self.error
         detected = source if source is not None else get_language(self.detected)
         return TranslationResult(translation=self.translation, detected_source=detected)
+
+    async def to_arabic_script(self, text: str) -> str:
+        self.script_calls.append(text)
+        if self.error is not None:
+            raise self.error
+        return self.script_result
 
 
 @pytest.fixture
