@@ -58,3 +58,26 @@ def test_static_assets_are_served(client: TestClient) -> None:
     assert css.status_code == 200 and "--font-text" in css.text
     assert js.status_code == 200 and "/api/translate" in js.text
     assert "Noto Naskh Arabic" in css.text  # Arabic-capable font stack
+
+
+def test_index_has_arabic_script_button(client: TestClient) -> None:
+    html = client.get("/").text
+    button = re.search(r'<button type="button" id="arabic-script"[^>]*>(.*?)</button>', html, re.S)
+    assert button, "arabic-script button missing"
+    tag = button.group(0)
+    assert 'class="secondary-button"' in tag
+    assert " disabled" in tag  # enabled by app.js once there is text
+    label = re.sub(r"<[^>]+>", "", button.group(1))
+    assert " ".join(label.split()) == "Arabic script / حروف عربي"
+    assert '<span lang="arz" dir="rtl">حروف عربي</span>' in tag
+    # Both actions sit together, Translate first.
+    assert html.index('id="translate"') < html.index('id="arabic-script"')
+
+
+def test_static_assets_wire_arabic_script(client: TestClient) -> None:
+    js = client.get("/static/js/app.js").text
+    css = client.get("/static/css/style.css").text
+    assert '"/api/arabic-script"' in js
+    assert 'getElementById("arabic-script")' in js
+    assert 'output.dir = "rtl"' in js
+    assert ".secondary-button" in css
