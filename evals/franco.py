@@ -7,11 +7,15 @@ The dataset is JSON Lines, one object per line::
      "tags": ["clear", "numerals"], "split": "dev", "note": "optional"}
 
 Every item goes through the real app path
-(``Settings -> build_provider -> TranslationService.translate``):
+(``Settings -> build_provider -> TranslationService``):
 
 1. Detection: ``translate(text, "auto", "en")`` (``"fr"`` for items labelled ``en``).
-2. Arabization (ar/arz items only): ``translate(text, "auto", item.label)``, scored with
-   chrF against the ``arabic`` reference, plus a Latin-leak check.
+2. Arabization, chosen with ``--arabize``:
+   - ``script`` (default): ``to_arabic_script(text)`` for every item. ar/arz outputs are
+     scored with chrF against the ``arabic`` reference plus a Latin-leak check; controls
+     must come back unchanged.
+   - ``translate`` (the baseline path): ``translate(text, "auto", item.label)`` for ar/arz
+     items only, scored the same way.
 
 Run with ``uv run python -m evals.franco --help``. Only ``main`` builds the real
 provider; ``run_franco`` takes the service as a parameter so tests inject a fake.
@@ -30,12 +34,16 @@ import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal, Self
+from typing import Any, Literal, Protocol, Self
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from app.config import Settings
+from app.languages import AUTO
+from app.providers.base import TranslationResult
 from app.providers.factory import build_provider
+from app.providers.prompts import build_script_system_prompt, build_script_user_message
+from app.providers.schemas import ScriptOutput, json_schema_for
 from app.services.translation_service import TranslationService
 from evals import metrics
 from evals.dataset import DatasetError, check_text, load_dataset
@@ -48,20 +56,19 @@ from evals.dialect import (
     EvalAborted,
     RateLimitExhausted,
     Sleep,
-    Translator,
     _cell,
     _confirm,
     _ids,
     _non_negative_float,
     _pct,
     _positive_int,
-    call_with_retries,
     diff_baseline,
     display_path,
     git_commit,
     load_baseline,
     prompt_fingerprint,
     report_basename,
+    retry_request,
     say,
     select_items,
     write_reports,
@@ -74,6 +81,14 @@ ARABIC_LABELS = frozenset({"ar", "arz"})
 CM_COLUMNS: tuple[str, ...] = (*FRANCO_LABELS, "other", "error")
 FINGERPRINT_TARGETS: tuple[str, ...] = ("en", "fr", "ar", "arz")
 SPLITS: tuple[str, ...] = ("dev", "test")
+
+ArabizeMode = Literal["script", "translate"]
+ARABIZE_MODES: tuple[str, ...] = ("script", "translate")
+SCRIPT_TARGET = "script"  # arabize_target recorded for the script-conversion pass
+ARABIZE_DESCRIPTIONS = {
+    "script": "script conversion: to_arabic_script(text), every item",
+    "translate": "translation: translate(text, auto, item label), ar/arz items only",
+}
 
 # Fixed tag vocabulary. An unknown tag is a loading error.
 FRANCO_TAGS: frozenset[str] = frozenset(
@@ -177,9 +192,30 @@ def detection_target(label: str) -> str:
     return "fr" if label == "en" else "en"
 
 
-def request_count(items: Iterable[FrancoItem]) -> int:
-    """Real requests a run sends: 2 per ar/arz item (detect + arabize), 1 per control."""
+def request_count(items: Iterable[FrancoItem], arabize: ArabizeMode = "script") -> int:
+    """Real requests a run sends.
+
+    ``script``: 2 per item (detect + script conversion, controls included).
+    ``translate``: 2 per ar/arz item (detect + arabize), 1 per control.
+    """
+    if arabize == "script":
+        return 2 * sum(1 for _ in items)
     return sum(2 if item.label in ARABIC_LABELS else 1 for item in items)
+
+
+def script_prompt_fingerprint() -> str:
+    """Short sha256 of the script system prompt, user template and JSON schema."""
+    parts = (
+        build_script_system_prompt(),
+        build_script_user_message("{text}"),
+        json.dumps(json_schema_for(ScriptOutput), sort_keys=True, ensure_ascii=False),
+    )
+    return hashlib.sha256("\x00".join(parts).encode("utf-8")).hexdigest()[:12]
+
+
+def same_text(output: str, text: str) -> bool:
+    """True if ``output`` equals ``text`` after whitespace normalisation."""
+    return " ".join(output.split()) == " ".join(text.split())
 
 
 def select_franco(
@@ -218,6 +254,16 @@ class FrancoItemResult(BaseModel):
     arabize_latency_ms: float | None = None
     chrf: float | None = None
     latin_leak: bool | None = None
+    # script pass on controls: output == input after whitespace normalisation
+    control_unchanged: bool | None = None
+
+
+class FrancoService(Protocol):
+    async def translate(
+        self, text: str, source_code: str, target_code: str
+    ) -> TranslationResult: ...
+
+    async def to_arabic_script(self, text: str) -> str: ...
 
 
 class FrancoRunResult(BaseModel):
@@ -234,8 +280,18 @@ def score_arabization(output: str, reference: str) -> tuple[float, bool]:
 
 
 def build_item_result(
-    item: FrancoItem, detect_target: str, detect: Attempt, arabize: Attempt | None
+    item: FrancoItem,
+    detect_target: str,
+    detect: Attempt,
+    arabize: Attempt | None,
+    *,
+    mode: ArabizeMode = "script",
 ) -> FrancoItemResult:
+    """Score one item. ``arabize`` is the second pass (script or translate, per ``mode``).
+
+    ar/arz outputs get chrF + Latin leak; a control's script output gets
+    ``control_unchanged``. A failed pass keeps only its error type.
+    """
     predicted = detect.response.detected_source.code if detect.response else None
     if detect.response is None:
         outcome: Outcome = "error"
@@ -259,26 +315,31 @@ def build_item_result(
     if arabize is None:
         return result
     update: dict[str, Any] = {
-        "arabize_target": item.label,
+        "arabize_target": SCRIPT_TARGET if mode == "script" else item.label,
         "arabize_error_type": arabize.error_type,
         "arabize_latency_ms": arabize.latency_ms,
     }
-    if arabize.response is not None and item.arabic is not None:
-        output = arabize.response.translation
+    response = arabize.response
+    if response is None:
+        return result.model_copy(update=update)
+    if isinstance(response, str):
+        output, detected = response, None
+    else:
+        output, detected = response.translation, response.detected_source.code
+    update |= {"arabic_output": output, "arabic_detected": detected}
+    if item.arabic is not None:
         chrf, leak = score_arabization(output, item.arabic)
-        update |= {
-            "arabic_output": output,
-            "arabic_detected": arabize.response.detected_source.code,
-            "chrf": chrf,
-            "latin_leak": leak,
-        }
+        update |= {"chrf": chrf, "latin_leak": leak}
+    else:
+        update["control_unchanged"] = same_text(output, item.text)
     return result.model_copy(update=update)
 
 
 async def run_franco(
-    service: Translator,
+    service: FrancoService,
     items: Sequence[FrancoItem],
     *,
+    arabize: ArabizeMode = "script",
     delay: float = 4.0,
     retry_wait: float = 60.0,
     max_retries: int = MAX_RETRIES,
@@ -286,36 +347,44 @@ async def run_franco(
     clock: Callable[[], float] = time.perf_counter,
     on_item: Callable[[int, FrancoItemResult], None] | None = None,
 ) -> FrancoRunResult:
-    """Run the detection pass (and, for ar/arz items, the arabization pass) item by item.
+    """Run the detection pass and the arabization pass item by item.
+
+    ``arabize="script"`` sends ``to_arabic_script`` for every item (controls included);
+    ``arabize="translate"`` sends ``translate(text, auto, label)`` for ar/arz items only.
 
     ``delay`` is slept before every request except the first. Rate limits are retried
-    by ``call_with_retries``. If they persist, the run stops: the unfinished item is
+    by ``retry_request``. If they persist, the run stops: the unfinished item is
     dropped and counted in ``not_run`` with the rest. An auth error raises
     ``EvalAborted``. Other provider errors are recorded per pass (type name only).
     """
     results: list[FrancoItemResult] = []
     sent_any = False
 
-    async def call(text: str, target: str) -> Attempt:
+    async def call(request: Callable[[], Any]) -> Attempt:
         nonlocal sent_any
         if sent_any:
             await sleep(delay)
         sent_any = True
-        return await call_with_retries(
-            service, text, target,
-            retry_wait=retry_wait, max_retries=max_retries, sleep=sleep, clock=clock,
+        return await retry_request(
+            request, retry_wait=retry_wait, max_retries=max_retries, sleep=sleep, clock=clock
         )
 
+    # Each lambda is awaited (and retried) before the loop moves on, so closing over the
+    # loop variables is safe.
     for index, item in enumerate(items):
         target = detection_target(item.label)
         try:
-            detect = await call(item.text, target)
-            arabize = await call(item.text, item.label) if item.label in ARABIC_LABELS else None
+            detect = await call(lambda: service.translate(item.text, AUTO, target))
+            second: Attempt | None = None
+            if arabize == "script":
+                second = await call(lambda: service.to_arabic_script(item.text))
+            elif item.label in ARABIC_LABELS:
+                second = await call(lambda: service.translate(item.text, AUTO, item.label))
         except RateLimitExhausted:
             return FrancoRunResult(
                 items=results, partial=True, stop_reason="rate_limit", not_run=len(items) - index
             )
-        result = build_item_result(item, target, detect, arabize)
+        result = build_item_result(item, target, detect, second, mode=arabize)
         results.append(result)
         if on_item is not None:
             on_item(index, result)
@@ -365,6 +434,10 @@ def summarize_franco(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     controls = [r for r in rows if r["label"] not in ARABIC_LABELS]
     false_pos = sum(1 for r in controls if r["predicted"] in ARABIC_LABELS)
     fp_lo, fp_hi = metrics.wilson_interval(false_pos, len(controls))
+    # Script pass on controls (absent in translate runs and in older reports).
+    script_controls = [r for r in controls if r.get("arabize_target") == SCRIPT_TARGET]
+    converted = [r for r in script_controls if r["arabic_output"] is not None]
+    unchanged = sum(1 for r in converted if r.get("control_unchanged"))
 
     arabize = group_stats(rows)
     per_tag = {
@@ -389,6 +462,13 @@ def summarize_franco(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             "false_positives": false_pos,
             "rate": _rate(false_pos, len(controls)),
             "rate_ci95": [fp_lo, fp_hi],
+        },
+        "controls_unchanged": {
+            "n": len(script_controls),
+            "scored": len(converted),
+            "errors": len(script_controls) - len(converted),
+            "unchanged": unchanged,
+            "rate": _rate(unchanged, len(converted)),
         },
         "arabization": {
             "n": arabize["arabize_n"],
@@ -428,19 +508,62 @@ def load_franco_baseline(path: Path) -> dict[str, Any]:
 def diff_franco_baseline(
     report: Mapping[str, Any], baseline: Mapping[str, Any], baseline_path: str = ""
 ) -> dict[str, Any]:
-    """Detection fixed/broken (via the dialect diff) plus arabization changes."""
+    """Detection fixed/broken (via the dialect diff) plus arabization changes.
+
+    Arabization: path, mean chrF and leaks before -> after, overall and per split/tag,
+    ids with new or fixed leaks, and whether the script prompt is new or changed.
+    """
     diff = diff_baseline(report, baseline, baseline_path)
     current = {i["id"]: i["latin_leak"] for i in report["items"] if i["latin_leak"] is not None}
     previous = {i["id"]: i["latin_leak"] for i in baseline["items"] if i.get("latin_leak") is not None}
     common = current.keys() & previous.keys()
     before = baseline["summary"].get("arabization", {})
+    meta, base_meta = report["meta"], baseline["meta"]
     diff |= {
+        "baseline_arabize": base_meta.get("arabize", "translate"),
         "baseline_mean_chrf": before.get("mean_chrf"),
         "baseline_latin_leak_rate": before.get("latin_leak_rate"),
+        "baseline_latin_leaks": before.get("latin_leaks"),
+        "baseline_arabize_scored": before.get("scored"),
         "new_leaks": sorted(i for i in common if current[i] and not previous[i]),
         "fixed_leaks": sorted(i for i in common if previous[i] and not current[i]),
+        "script_prompt": _script_prompt_status(
+            meta.get("script_prompt_fingerprint"), base_meta.get("script_prompt_fingerprint")
+        ),
+        "groups": {
+            "split": _group_changes(report["summary"]["per_split"], baseline["summary"].get("per_split", {})),
+            "tag": _group_changes(report["summary"]["per_tag"], baseline["summary"].get("per_tag", {})),
+        },
     }
     return diff
+
+
+def _script_prompt_status(current: str | None, previous: str | None) -> str:
+    if current is None:
+        return "n/a"
+    if previous is None:
+        return "new"
+    return "same" if current == previous else "changed"
+
+
+def _group_changes(
+    now: Mapping[str, Mapping[str, Any]], then: Mapping[str, Mapping[str, Any]]
+) -> dict[str, dict[str, Any]]:
+    """Mean chrF and leak counts before -> after for groups with ar/arz items on either side."""
+    changes = {}
+    for name in sorted(now.keys() | then.keys()):
+        after, before = now.get(name, {}), then.get(name, {})
+        if not after.get("arabize_n") and not before.get("arabize_n"):
+            continue
+        changes[name] = {
+            "chrf_before": before.get("mean_chrf"),
+            "chrf_after": after.get("mean_chrf"),
+            "leaks_before": before.get("latin_leaks"),
+            "leaks_after": after.get("latin_leaks"),
+            "scored_before": before.get("arabize_scored"),
+            "scored_after": after.get("arabize_scored"),
+        }
+    return changes
 
 
 def _num(value: float | None, fmt: str = ".1f") -> str:
@@ -475,7 +598,12 @@ def render_markdown(report: Mapping[str, Any]) -> str:
     latency = summary["median_latency_ms"]
     fp = summary["control_false_positives"]
     arb = summary["arabization"]
+    unchanged = summary["controls_unchanged"]
+    mode = meta.get("arabize", "translate")
+    script_mode = mode == "script"
     fingerprints = ", ".join(f"{k} `{v}`" for k, v in meta["prompt_fingerprint"].items())
+    if meta.get("script_prompt_fingerprint"):
+        fingerprints += f", script `{meta['script_prompt_fingerprint']}`"
     lines = [f"# Franco-Arabic eval ({meta['created_utc']})", ""]
     if meta["partial"]:
         lines += [
@@ -490,7 +618,8 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         "|---|---|",
         f"| Provider | {meta['provider']} |",
         f"| Model | `{meta['model']}` |",
-        "| Targets | detection: en (fr for en items); arabization: the item's label |",
+        "| Detection target | en (fr for en items) |",
+        f"| Arabization path | `{mode}`: {ARABIZE_DESCRIPTIONS[mode]} |",
         f"| Prompt fingerprints | {fingerprints} |",
         f"| Git commit | `{meta['git_commit']}` |",
         f"| Dataset | `{meta['dataset']['path']}` ({meta['dataset']['size']} items) |",
@@ -526,6 +655,13 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         f"Latin leak {arb['latin_leaks']}/{arb['scored']} = {_pct(arb['latin_leak_rate'])}. "
         f"Errors (not scored): {arb['errors']}.",
     ]
+    if unchanged["n"]:
+        lines += [
+            "",
+            "Controls unchanged (script output == input after whitespace normalisation): "
+            f"**{unchanged['unchanged']}/{unchanged['scored']}** = {_pct(unchanged['rate'])}. "
+            f"Errors: {unchanged['errors']}.",
+        ]
     lines += _group_table("Per split", summary["per_split"])
     lines += _group_table("Per tag", summary["per_tag"])
 
@@ -547,10 +683,14 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         "",
         f"## Review: ar/arz items ({len(arabic_items)})",
         "",
-        "`arz output` is the `auto -> label` output (ar items go to ar). "
-        "A `*` after chrF marks a Latin leak.",
+        (
+            "`arabized output` is the `to_arabic_script` output. "
+            if script_mode
+            else "`arabized output` is the `auto -> label` output (ar items go to ar). "
+        )
+        + "A `*` after chrF marks a Latin leak.",
         "",
-        "| id | text | arabic ref | arz output | chrF | en output | meaning |",
+        "| id | text | arabic ref | arabized output | chrF | en output | meaning |",
         "|---|---|---|---|---:|---|---|",
     ]
     for item in arabic_items:
@@ -574,15 +714,23 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         "",
         f"## Review: controls ({len(controls)})",
         "",
-        "| id | text | label -> predicted | output |",
-        "|---|---|---|---|",
+        "| id | text | label -> predicted | output |"
+        + (" script output | unchanged |" if script_mode else ""),
+        "|---|---|---|---|" + ("---|---|" if script_mode else ""),
     ]
     for item in controls:
         predicted = item["predicted"] or f"error ({item['detect_error_type']})"
-        lines.append(
+        row = (
             f"| {item['id']} | {_cell(item['text'])} | {item['label']} -> {predicted} | "
             f"{_cell(item['translation'] or '')} |"
         )
+        if script_mode:
+            if item["arabic_output"] is None:
+                row += f" error ({item['arabize_error_type']}) | n/a |"
+            else:
+                same = "yes" if item.get("control_unchanged") else "**no**"
+                row += f" {_cell(item['arabic_output'])} | {same} |"
+        lines.append(row)
 
     diff = report.get("baseline")
     if diff is not None:
@@ -597,10 +745,14 @@ def render_markdown(report: Mapping[str, Any]) -> str:
             f"- Detection accuracy: {_pct(diff['baseline_accuracy'])} "
             f"({diff['baseline_attempted']} attempted) -> {_pct(summary['accuracy'])} "
             f"({summary['attempted']} attempted)",
+            f"- Arabization path: {diff['baseline_arabize']} -> {mode}",
             f"- Mean chrF: {_num(diff['baseline_mean_chrf'])} -> {_num(arb['mean_chrf'])}",
-            f"- Latin leak rate: {_pct(diff['baseline_latin_leak_rate'])} -> "
-            f"{_pct(arb['latin_leak_rate'])}",
-            f"- Prompt changed: {'yes' if diff['prompt_changed'] else 'no'}",
+            "- Latin leaks: "
+            f"{_count(diff['baseline_latin_leaks'], diff['baseline_arabize_scored'])}"
+            f" ({_pct(diff['baseline_latin_leak_rate'])}) -> "
+            f"{arb['latin_leaks']}/{arb['scored']} ({_pct(arb['latin_leak_rate'])})",
+            f"- Translation prompts changed: {'yes' if diff['prompt_changed'] else 'no'}",
+            f"- Script prompt: {diff['script_prompt']}",
             f"- Detection fixed ({len(diff['fixed'])}): {_ids(diff['fixed'])}",
             f"- Detection broken ({len(diff['broken'])}): {_ids(diff['broken'])}",
             f"- New Latin leaks ({len(diff['new_leaks'])}): {_ids(diff['new_leaks'])}",
@@ -608,7 +760,35 @@ def render_markdown(report: Mapping[str, Any]) -> str:
             f"- Only in this run: {_ids(diff['only_in_current'])}",
             f"- Only in baseline: {_ids(diff['only_in_baseline'])}",
         ]
+        lines += _change_table("Mean chrF and Latin leaks by split", diff["groups"]["split"])
+        lines += _change_table("Mean chrF and Latin leaks by tag", diff["groups"]["tag"])
     return "\n".join(lines) + "\n"
+
+
+def _count(k: int | None, n: int | None) -> str:
+    return "n/a" if k is None or n is None else f"{k}/{n}"
+
+
+def _delta(before: float | None, after: float | None) -> str:
+    return "n/a" if before is None or after is None else f"{after - before:+.1f}"
+
+
+def _change_table(title: str, changes: Mapping[str, Mapping[str, Any]]) -> list[str]:
+    lines = [
+        "",
+        f"### {title}",
+        "",
+        "| Group | chrF before | chrF after | change | leaks before | leaks after |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for name, c in changes.items():
+        lines.append(
+            f"| {name} | {_num(c['chrf_before'])} | {_num(c['chrf_after'])} | "
+            f"{_delta(c['chrf_before'], c['chrf_after'])} | "
+            f"{_count(c['leaks_before'], c['scored_before'])} | "
+            f"{_count(c['leaks_after'], c['scored_after'])} |"
+        )
+    return lines
 
 
 # --- console ---------------------------------------------------------------------------
@@ -620,6 +800,9 @@ def progress_line(index: int, total: int, result: FrancoItemResult) -> str:
     if result.arabize_target is not None:
         if result.arabic_output is None:
             line += f" | to:{result.arabize_target} error:{result.arabize_error_type}"
+        elif result.chrf is None:  # control, script pass
+            same = "yes" if result.control_unchanged else "no"
+            line += f" | to:{result.arabize_target} unchanged={same}"
         else:
             leak = "yes" if result.latin_leak else "no"
             line += f" | to:{result.arabize_target} chrF {result.chrf:.1f} leak={leak}"
@@ -636,10 +819,17 @@ def console_summary(report: Mapping[str, Any]) -> list[str]:
         f"Detection: {summary['correct']}/{summary['attempted']} = {_pct(summary['accuracy'])} "
         f"(95% CI {_pct(lo)} - {_pct(hi)}), errors: {summary['errors']}",
         f"Control false positives: {fp['false_positives']}/{fp['n']} = {_pct(fp['rate'])}",
-        f"Arabization: mean chrF {_num(arb['mean_chrf'])} over {arb['scored']} | "
+        f"Arabization ({report['meta'].get('arabize', 'translate')}): "
+        f"mean chrF {_num(arb['mean_chrf'])} over {arb['scored']} | "
         f"Latin leak {arb['latin_leaks']}/{arb['scored']} = {_pct(arb['latin_leak_rate'])} | "
         f"errors: {arb['errors']}",
     ]
+    unchanged = summary["controls_unchanged"]
+    if unchanged["n"]:
+        lines.append(
+            f"Controls unchanged: {unchanged['unchanged']}/{unchanged['scored']} = "
+            f"{_pct(unchanged['rate'])} | errors: {unchanged['errors']}"
+        )
     for split, g in summary["per_split"].items():
         lines.append(
             f"  {split:<5} n={g['n']:<3} detection {_pct(g['accuracy'])} | "
@@ -652,9 +842,17 @@ def console_summary(report: Mapping[str, Any]) -> list[str]:
     diff = report.get("baseline")
     if diff is not None:
         warning = " (WARNING: dataset hash differs)" if diff["dataset_hash_changed"] else ""
+        splits = ", ".join(
+            f"{name} {_num(c['chrf_before'])} -> {_num(c['chrf_after'])}"
+            for name, c in diff["groups"]["split"].items()
+        )
         lines.append(
-            f"Baseline: {len(diff['fixed'])} fixed, {len(diff['broken'])} broken, "
-            f"chrF {_num(diff['baseline_mean_chrf'])} -> {_num(arb['mean_chrf'])}, "
+            f"Baseline ({diff['baseline_arabize']} -> {report['meta'].get('arabize', 'translate')}): "
+            f"{len(diff['fixed'])} fixed, {len(diff['broken'])} broken, "
+            f"chrF {_num(diff['baseline_mean_chrf'])} -> {_num(arb['mean_chrf'])}"
+            + (f" ({splits})" if splits else "")
+            + f", leaks {_count(diff['baseline_latin_leaks'], diff['baseline_arabize_scored'])}"
+            f" -> {arb['latin_leaks']}/{arb['scored']}, "
             f"{len(diff['new_leaks'])} new leak(s){warning}"
         )
     return lines
@@ -684,6 +882,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="seconds to wait after a rate limit before retrying (default: 60)")
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,
                         help="report directory (default: evals/results)")
+    parser.add_argument("--arabize", choices=ARABIZE_MODES, default="script",
+                        help="arabization path: script (to_arabic_script, every item; default) "
+                        "or translate (the baseline path: auto -> item label, ar/arz only)")
     parser.add_argument("--yes", action="store_true",
                         help=f"skip the confirmation for more than {CONFIRM_THRESHOLD} requests")
     return parser
@@ -719,7 +920,7 @@ def main(
     if args.model:
         settings = settings.model_copy(update={f"{settings.provider}_model": args.model})
 
-    requests = request_count(selected)
+    requests = request_count(selected, args.arabize)
     if requests > CONFIRM_THRESHOLD and not args.yes:
         if not _confirm(requests, args.delay, input_fn):
             say("Aborted: nothing was sent.")
@@ -731,13 +932,13 @@ def main(
 
     say(
         f"Running {total} item(s), {requests} request(s) on "
-        f"{settings.provider}/{settings.active_model}"
+        f"{settings.provider}/{settings.active_model} (arabize: {args.arabize})"
     )
     try:
         run = asyncio.run(
             run_franco(
                 service, selected,
-                delay=args.delay, retry_wait=args.retry_wait, sleep=sleep,
+                arabize=args.arabize, delay=args.delay, retry_wait=args.retry_wait, sleep=sleep,
                 on_item=lambda index, result: say(progress_line(index, total, result)),
             )
         )
@@ -755,8 +956,12 @@ def main(
         },
         "provider": settings.provider,
         "model": settings.active_model,
-        "targets": {"detect": "en (fr for en items)", "arabize": "item label (ar or arz)"},
+        "arabize": args.arabize,
+        "targets": {"detect": "en (fr for en items)", "arabize": ARABIZE_DESCRIPTIONS[args.arabize]},
         "prompt_fingerprint": {t: prompt_fingerprint(t) for t in FINGERPRINT_TARGETS},
+        "script_prompt_fingerprint": (
+            script_prompt_fingerprint() if args.arabize == "script" else None
+        ),
         "git_commit": git_commit(),
         "filters": {"tag": args.tag, "split": args.split, "limit": args.limit},
         "selected": total,

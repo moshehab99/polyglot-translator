@@ -99,7 +99,7 @@ class RateLimitExhausted(Exception):
 class Attempt:
     """One request's outcome: ``response`` on success, else ``error_type`` (name only)."""
 
-    response: TranslationResult | None = None
+    response: TranslationResult | str | None = None
     error_type: str | None = None
     latency_ms: float | None = None
 
@@ -114,7 +114,22 @@ async def call_with_retries(
     sleep: Sleep,
     clock: Callable[[], float],
 ) -> Attempt:
-    """Translate ``text`` from ``auto`` once, retrying on rate limits.
+    """Translate ``text`` from ``auto`` once, retrying on rate limits (see ``retry_request``)."""
+    return await retry_request(
+        lambda: service.translate(text, AUTO, target),
+        retry_wait=retry_wait, max_retries=max_retries, sleep=sleep, clock=clock,
+    )
+
+
+async def retry_request(
+    request: Callable[[], Awaitable[TranslationResult | str]],
+    *,
+    retry_wait: float,
+    max_retries: int,
+    sleep: Sleep,
+    clock: Callable[[], float],
+) -> Attempt:
+    """Send one service request, retrying on rate limits.
 
     - ``ProviderRateLimitError``: wait ``retry_wait`` and retry, at most ``max_retries``
       times; then raise ``RateLimitExhausted``.
@@ -126,7 +141,7 @@ async def call_with_retries(
     while True:
         start = clock()
         try:
-            response = await service.translate(text, AUTO, target)
+            response = await request()
         except ProviderRateLimitError:
             if retries >= max_retries:
                 raise RateLimitExhausted from None

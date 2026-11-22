@@ -162,27 +162,35 @@ files are committed only when the maintainer chooses a run to keep (e.g. the bas
 ### What is measured
 
 Users type Egyptian Arabic in Latin letters, with digits standing in for some Arabic
-letters: `ana msh fahem enta 3ayez eh`. This eval measures how the **current** app
-handles that input, through the same real path as the dialect eval:
+letters: `ana msh fahem enta 3ayez eh`. This eval measures how the app handles that
+input, through the same real path as the dialect eval:
 
 ```
-Settings (.env) -> build_provider -> TranslationService.translate(text, "auto", target)
+Settings (.env) -> build_provider -> TranslationService
 ```
 
 1. **Detection** (every item): `translate(text, "auto", "en")`, or target `"fr"` for
    items labelled `en`. `detected_source` must equal the label. The English or French
    output is saved for manual review but not scored.
-2. **Arabization** (ar/arz items only): `translate(text, "auto", item.label)`, so `arz`
-   items go to Egyptian Arabic and `ar` items go to MSA. The output is compared with the
-   item's `arabic` reference:
+2. **Arabization**, chosen with `--arabize`:
+   - `script` (default): `to_arabic_script(text)` for **every** item. This is the app's
+     script-conversion mode (`POST /api/arabic-script`): same words, Franco in Arabic
+     script, everything else kept as written.
+   - `translate`: `translate(text, "auto", item.label)` for ar/arz items only, so `arz`
+     items go to Egyptian Arabic and `ar` items go to MSA. This is the path the baseline
+     below was measured with.
+
+   For ar/arz items the output is compared with the item's `arabic` reference:
    - **chrF** (character n-grams 1..6, beta = 2, 0-100) after Arabic normalisation:
      tashkeel and tatweel removed, أ/إ/آ -> ا, ة -> ه, ى -> ي, Arabic-Indic (٠-٩)
      and Persian (۰-۹) digits -> 0-9, punctuation dropped, spaces collapsed.
    - **Latin leak**: the output contains a Latin-script word that is not in the
      reference.
 
-Controls (real English/French/Spanish/... text) only get the detection pass. A control
-detected as `ar`/`arz` is a false positive.
+Controls (real English/French/Spanish/... text) get the detection pass, plus the script
+pass in `script` mode. A control detected as `ar`/`arz` is a false positive. In `script`
+mode a control must come back **unchanged**: output == input after whitespace
+normalisation (runs of whitespace collapsed, ends stripped; case and punctuation count).
 
 ### Labelling policy
 
@@ -316,24 +324,30 @@ uv run pytest tests/test_franco_dataset.py -q
     ignored.
   - **Errors are not scored.** Mean chrF and the leak rate cover successful outputs
     only, and the arabization error count is reported next to them.
+- **Controls unchanged** (`script` mode only): unchanged / successful script outputs on
+  controls, with script errors counted separately.
 - All of these are reported per tag and per split, along with the median latency of
   each pass.
 
 ### How to run
 
-The CLI makes **real API calls** with the provider and key set in `.env`. Each `ar`/`arz`
-item sends 2 requests (detection + arabization) and each control sends 1, one at a time.
+The CLI makes **real API calls** with the provider and key set in `.env`, one at a time.
+- `script` mode (default): 2 requests per item (detection + script conversion), controls
+  included. A full run is 160 requests.
+- `translate` mode: 2 per `ar`/`arz` item and 1 per control (147 for a full run).
 
 ```
-uv run python -m evals.franco --limit 3            # smoke run: f001-f003 = 5 requests
+uv run python -m evals.franco --limit 3            # smoke run: f001-f003 = 6 requests
 uv run python -m evals.franco                      # full run (asks to confirm)
-uv run python -m evals.franco --split dev          # dev only (for prompt work)
+uv run python -m evals.franco --split dev          # dev only (for prompt work): 106 requests
 uv run python -m evals.franco --tag no_numerals    # one slice
+uv run python -m evals.franco --arabize translate  # the old (baseline) path
 uv run python -m evals.franco --baseline evals/results/franco_20261118-080836_gemini_gemini-3.5-flash-lite.json
 ```
 
 | Flag | Default | Meaning |
 |---|---|---|
+| `--arabize P` | `script` | Arabization path: `script` (`to_arabic_script`, every item) or `translate` (`auto -> label`, ar/arz only) |
 | `--limit N` | all | Only the first N items, applied after `--tag` and `--split` |
 | `--tag TAG` | none | Only items with this tag |
 | `--split S` | none | Only `dev` or only `test` items |
@@ -357,7 +371,12 @@ The files are named `franco_<YYYYMMDD-HHMMSS>_<provider>_<model>.json` / `.md`.
 
 - **`meta`**:
   - `eval: "franco"`, UTC time, dataset path, sha256 and size, provider and model.
-  - `prompt_fingerprint`: one short sha256 per target (`en`, `fr`, `ar`, `arz`).
+  - `arabize`: the path (`script` or `translate`). Reports from before this field read
+    as `translate`.
+  - `prompt_fingerprint`: one short sha256 per translation target (`en`, `fr`, `ar`,
+    `arz`).
+  - `script_prompt_fingerprint`: the same for the script-conversion prompt, user template
+    and schema (`null` in `translate` mode).
   - git commit, filters (tag, split, limit), `requests_planned`, and `partial` /
     `stop_reason` / `not_run`.
 - **`summary`**: everything listed under Metrics. It is computed from `items` alone,
@@ -366,23 +385,32 @@ The files are named `franco_<YYYYMMDD-HHMMSS>_<provider>_<model>.json` / `.md`.
 - **`items`**: the dataset fields plus every raw output:
   - Detection: `detect_target`, `predicted`, `outcome`, `translation` (the en/fr
     output), `detect_error_type`, `detect_latency_ms`.
-  - Arabization: `arabize_target`, `arabic_output`, `arabic_detected`,
-    `arabize_error_type`, `arabize_latency_ms`.
-  - Scores: `chrf`, `latin_leak`.
+  - Arabization: `arabize_target` (the label in `translate` mode, `"script"` in
+    `script` mode), `arabic_output` (for controls too in `script` mode),
+    `arabic_detected` (`translate` mode only), `arabize_error_type`,
+    `arabize_latency_ms`.
+  - Scores: `chrf`, `latin_leak` (ar/arz items), `control_unchanged` (controls in
+    `script` mode).
 - **`baseline`** (only with `--baseline`):
   - Detection: items fixed and broken.
-  - Mean chrF and leak rate, before -> after.
+  - The arabization path, before -> after.
+  - Mean chrF, leak count and leak rate, before -> after, overall and per split and
+    per tag (`groups`).
   - Ids with a new or fixed Latin leak.
-  - Whether the prompt fingerprints or the dataset hash changed.
+  - Whether the translation prompt fingerprints or the dataset hash changed, and the
+    script prompt status: `new` (baseline had none), `same`, `changed`, or `n/a`
+    (`translate` run).
 
 The `.md` file has:
-- Run, detection, confusion-matrix and arabization sections.
+- Run (including the arabization path), detection, confusion-matrix and arabization
+  sections, plus the controls-unchanged count in `script` mode.
 - Per-split and per-tag tables.
 - The wrong detections.
 - A **review table** for every ar/arz item:
-  `id | text | arabic ref | arz output | chrF | en output | meaning`. A `*` after chrF
-  marks a Latin leak.
-- A controls table.
+  `id | text | arabic ref | arabized output | chrF | en output | meaning`. A `*` after
+  chrF marks a Latin leak.
+- A controls table. In `script` mode it adds `script output | unchanged`.
+- With `--baseline`: per-split and per-tag tables of chrF and leaks, before -> after.
 
 ```
 uv run pytest tests/test_franco_dataset.py tests/test_franco_runner.py tests/test_eval_metrics.py -q
@@ -390,8 +418,9 @@ uv run pytest tests/test_franco_dataset.py tests/test_franco_runner.py tests/tes
 
 ### Baseline
 
-Recorded 2026-11-18 with `gemini-3.5-flash-lite` on the current app, which has no
-Franco-specific changes:
+Recorded 2026-11-18 with `gemini-3.5-flash-lite` on the app before the script-conversion
+mode existed, so with the `translate` arabization path (`--arabize translate` reproduces
+it):
 - Git commit `2753347`, all 80 items, 147 requests, not partial.
 - Prompt fingerprints: en `2ac34465d2fb`, fr `f081acbcb4e6`, ar `6760617d77bd`,
   arz `572d36e53152`.

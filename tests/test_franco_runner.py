@@ -57,6 +57,13 @@ ARABIC_OUT = {
     "inshallah": "إن شاء الله",  # chrF 100
     "el meeting et2agel": "الـ meeting اتأجل bokra",  # Latin leak
 }
+# Script-conversion outputs. Texts not listed come back unchanged.
+SCRIPT_OUT = {
+    "ana msh fahem": "أنا مش فاهم",  # chrF 100
+    "inshallah": "إن شاء الله",  # chrF 100
+    "el meeting et2agel": "الـ meeting اتأجل",  # chrF 100, English word kept
+    "à plus tard": "ا بلوس تارد",  # control changed
+}
 
 
 class ScriptedProvider(TranslationProvider):
@@ -66,6 +73,8 @@ class ScriptedProvider(TranslationProvider):
     - ``script[(text, target)]``: exceptions raised (in order) on the first such calls.
     - ``detect`` / ``arabic_out``: detection per text and the output for ar/arz targets.
       Other targets return ``"<target>(<text>)"``.
+    - ``script_out``: ``to_arabic_script`` output per text (default: the text itself).
+      Script calls are recorded as ``(text, "script")`` and scripted with that key.
     """
 
     name = "fake"
@@ -77,11 +86,13 @@ class ScriptedProvider(TranslationProvider):
         script: dict[tuple[str, str], list[Exception]] | None = None,
         detect: dict[str, str] | None = None,
         arabic_out: dict[str, str] | None = None,
+        script_out: dict[str, str] | None = None,
     ) -> None:
         self.always = always
         self.script = {key: list(errors) for key, errors in (script or {}).items()}
         self.detect = {**DETECT, **(detect or {})}
         self.arabic_out = {**ARABIC_OUT, **(arabic_out or {})}
+        self.script_out = {**SCRIPT_OUT, **(script_out or {})}
         self.calls: list[tuple[str, str]] = []
 
     async def translate(
@@ -102,7 +113,13 @@ class ScriptedProvider(TranslationProvider):
         return TranslationResult(translation=translation, detected_source=get_language(code))
 
     async def to_arabic_script(self, text: str) -> str:
-        raise AssertionError("this eval never calls script conversion")
+        self.calls.append((text, "script"))
+        if self.always is not None:
+            raise self.always
+        queue = self.script.get((text, "script"))
+        if queue:
+            raise queue.pop(0)
+        return self.script_out.get(text, text)
 
 
 class SleepSpy:
@@ -132,9 +149,9 @@ async def _run(
 # --- run_franco -------------------------------------------------------------------------
 
 
-async def test_passes_and_targets() -> None:
+async def test_translate_path_passes_and_targets() -> None:
     provider = ScriptedProvider()
-    await _run(provider)
+    await _run(provider, arabize="translate")
     assert provider.calls == [
         ("ana msh fahem", "en"), ("ana msh fahem", "arz"),
         ("inshallah", "en"), ("inshallah", "ar"),
@@ -146,14 +163,14 @@ async def test_passes_and_targets() -> None:
 
 async def test_ar_item_is_arabized_to_ar() -> None:
     provider = ScriptedProvider()
-    run = await _run(provider, [ITEMS[1]])
+    run = await _run(provider, [ITEMS[1]], arabize="translate")
     assert provider.calls == [("inshallah", "en"), ("inshallah", "ar")]
     assert run.items[0].arabize_target == "ar"
     assert run.items[0].arabic_detected == "ar"
 
 
 async def test_item_results_keep_raw_outputs_and_scores() -> None:
-    run = await _run(ScriptedProvider())
+    run = await _run(ScriptedProvider(), arabize="translate")
     by_id = {r.id: r for r in run.items}
     assert [r.outcome for r in run.items] == ["correct", "correct", "correct", "wrong", "wrong"]
 
@@ -176,12 +193,14 @@ async def test_item_results_keep_raw_outputs_and_scores() -> None:
     assert control.detect_target == "fr"
     assert control.arabize_target is None
     assert control.arabic_output is None and control.chrf is None and control.latin_leak is None
+    assert control.control_unchanged is None
 
 
 async def test_delay_before_every_request_but_the_first() -> None:
-    sleep = SleepSpy()
-    await _run(ScriptedProvider(), delay=4.0, sleep=sleep)
-    assert sleep.calls == [4.0] * (franco.request_count(ITEMS) - 1)
+    for mode in ("script", "translate"):
+        sleep = SleepSpy()
+        await _run(ScriptedProvider(), arabize=mode, delay=4.0, sleep=sleep)
+        assert sleep.calls == [4.0] * (franco.request_count(ITEMS, mode) - 1)
 
 
 async def test_errors_are_recorded_per_pass() -> None:
@@ -191,7 +210,7 @@ async def test_errors_are_recorded_per_pass() -> None:
             ("see you later", "fr"): [ProviderBadOutputError(SECRET)],
         }
     )
-    run = await _run(provider)
+    run = await _run(provider, arabize="translate")
     by_id = {r.id: r for r in run.items}
 
     arabize_error = by_id["f005"]
@@ -228,7 +247,7 @@ async def test_rate_limit_then_success_retries_same_request() -> None:
         script={("inshallah", "ar"): [ProviderRateLimitError("429"), ProviderRateLimitError("429")]}
     )
     sleep = SleepSpy()
-    run = await _run(provider, ITEMS[:2], delay=4.0, retry_wait=60.0, sleep=sleep)
+    run = await _run(provider, ITEMS[:2], arabize="translate", delay=4.0, retry_wait=60.0, sleep=sleep)
     assert not run.partial
     assert [r.arabic_output for r in run.items] == ["أنا مش فاهم", "إن شاء الله"]
     assert provider.calls.count(("inshallah", "ar")) == 3
@@ -237,7 +256,7 @@ async def test_rate_limit_then_success_retries_same_request() -> None:
 
 async def test_rate_limit_forever_stops_partial_and_drops_unfinished_item() -> None:
     provider = ScriptedProvider(script={("inshallah", "ar"): [ProviderRateLimitError("429")] * 10})
-    run = await _run(provider)
+    run = await _run(provider, arabize="translate")
     assert run.partial
     assert run.stop_reason == "rate_limit"
     assert [r.id for r in run.items] == ["f001"]  # f002's detection result is dropped
@@ -251,7 +270,9 @@ async def test_unexpected_exception_propagates() -> None:
 
 
 def test_request_count_and_select() -> None:
-    assert franco.request_count(ITEMS) == 8  # 3 Arabic items x 2 + 2 controls
+    assert franco.request_count(ITEMS, "translate") == 8  # 3 Arabic items x 2 + 2 controls
+    assert franco.request_count(ITEMS, "script") == 10  # every item x 2
+    assert franco.request_count(ITEMS) == 10  # script is the default
     assert [i.id for i in franco.select_franco(ITEMS, None, "test", None)] == ["f002", "f004", "f005"]
     assert [i.id for i in franco.select_franco(ITEMS, "short", None, None)] == ["f001", "f002"]
     assert [i.id for i in franco.select_franco(ITEMS, "control", "test", 1)] == ["f004"]
@@ -262,7 +283,7 @@ def test_request_count_and_select() -> None:
 
 
 async def test_summary_detection_controls_and_groups() -> None:
-    run = await _run(ScriptedProvider())
+    run = await _run(ScriptedProvider(), arabize="translate")
     summary = franco.summarize_franco([r.model_dump() for r in run.items])
 
     assert summary["attempted"] == 5
@@ -289,6 +310,9 @@ async def test_summary_detection_controls_and_groups() -> None:
     assert summary["per_tag"]["control"]["mean_chrf"] is None
     assert summary["per_tag"]["code_switch"]["latin_leak_rate"] == 1.0
     assert summary["median_latency_ms"] == {"detect": 250.0, "arabize": 250.0}
+    assert summary["controls_unchanged"] == {
+        "n": 0, "scored": 0, "errors": 0, "unchanged": 0, "rate": None,
+    }
 
 
 # --- CLI (main) -------------------------------------------------------------------------
@@ -335,8 +359,10 @@ def _only_report(out: Path) -> tuple[dict[str, Any], str, Path]:
     return report, markdown, json_path
 
 
-def test_main_writes_reports(cli: dict[str, Any], capsys: pytest.CaptureFixture[str]) -> None:
-    assert _main(cli) == 0
+def test_main_translate_path_writes_reports(
+    cli: dict[str, Any], capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _main(cli, "--arabize", "translate") == 0
     report, markdown, json_path = _only_report(cli["out"])
 
     assert set(report) == {"meta", "summary", "items"}
@@ -353,6 +379,8 @@ def test_main_writes_reports(cli: dict[str, Any], capsys: pytest.CaptureFixture[
     assert meta["filters"] == {"tag": None, "split": None, "limit": None}
     assert meta["requests_planned"] == 8
     assert meta["partial"] is False
+    assert meta["arabize"] == "translate"
+    assert meta["script_prompt_fingerprint"] is None
 
     item = report["items"][0]
     assert item["text"] == "ana msh fahem"
@@ -370,7 +398,10 @@ def test_main_writes_reports(cli: dict[str, Any], capsys: pytest.CaptureFixture[
     assert "## Confusion matrix" in markdown
     assert "Control false positives (control detected as ar/arz): 1/2 = 50.0%" in markdown
     assert "## Per split" in markdown and "## Per tag" in markdown
-    assert "| id | text | arabic ref | arz output | chrF | en output | meaning |" in markdown
+    assert "| id | text | arabic ref | arabized output | chrF | en output | meaning |" in markdown
+    assert "| Arabization path | `translate`:" in markdown
+    assert "Controls unchanged" not in markdown
+    assert "| id | text | label -> predicted | output |\n" in markdown
     assert "| f001 | ana msh fahem | أنا مش فاهم | أنا مش فاهم | 100.0 | en(ana msh fahem) | gloss |" in markdown
     assert "| f005 | test | arz -> ar | el meeting et2agel |" in markdown
     assert "| f004 | à plus tard | fr -> arz | en(à plus tard) |" in markdown
@@ -391,7 +422,7 @@ def test_main_split_tag_limit_filters(cli: dict[str, Any], tmp_path: Path) -> No
     report, _, _ = _only_report(tmp_path / "a")
     assert [i["id"] for i in report["items"]] == ["f002", "f004", "f005"]
     assert report["meta"]["filters"] == {"tag": None, "split": "test", "limit": None}
-    assert report["meta"]["requests_planned"] == 5
+    assert report["meta"]["requests_planned"] == 6  # 3 items x 2 (script path)
 
     assert _main(cli, "--tag", "short", "--limit", "1", out=tmp_path / "b") == 0
     report, _, _ = _only_report(tmp_path / "b")
@@ -410,9 +441,24 @@ def test_main_arabize_error_progress_line(cli: dict[str, Any], capsys: pytest.Ca
     cli["provider"] = ScriptedProvider(
         script={("ana msh fahem", "arz"): [ProviderBadOutputError(SECRET)]}
     )
-    assert _main(cli) == 0
+    assert _main(cli, "--arabize", "translate") == 0
     out = capsys.readouterr().out
     assert "f001 arz -> arz CORRECT | to:arz error:ProviderBadOutputError" in out
+    assert SECRET not in out
+
+
+def test_main_script_error_progress_line(cli: dict[str, Any], capsys: pytest.CaptureFixture[str]) -> None:
+    cli["provider"] = ScriptedProvider(
+        script={
+            ("ana msh fahem", "script"): [ProviderBadOutputError(SECRET)],
+            ("see you later", "script"): [ProviderBadOutputError(SECRET)],
+        }
+    )
+    assert _main(cli) == 0
+    out = capsys.readouterr().out
+    assert "f001 arz -> arz CORRECT | to:script error:ProviderBadOutputError" in out
+    assert "f003 en -> en CORRECT | to:script error:ProviderBadOutputError" in out
+    assert "Controls unchanged: 0/1 = 0.0% | errors: 1" in out
     assert SECRET not in out
 
 
@@ -462,8 +508,8 @@ def _many(n_arz: int, n_controls: int) -> list[FrancoItem]:
 def test_confirmation_counts_requests_not_items(
     cli: dict[str, Any], tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # 6 items but 5 x 2 + 1 = 11 requests: above the threshold, so it asks.
-    cli["dataset"] = _write_dataset(tmp_path / "eleven.jsonl", _many(5, 1))
+    # 6 items but 6 x 2 = 12 requests (script path): above the threshold, so it asks.
+    cli["dataset"] = _write_dataset(tmp_path / "twelve.jsonl", _many(5, 1))
     prompts: list[str] = []
 
     def decline(prompt: str) -> str:
@@ -472,19 +518,22 @@ def test_confirmation_counts_requests_not_items(
 
     assert _main(cli, input_fn=decline) == 1
     assert len(prompts) == 1
-    assert "About to send 11 real requests" in capsys.readouterr().out
+    assert "About to send 12 real requests" in capsys.readouterr().out
     assert cli["provider"].calls == []
     assert not cli["out"].exists()
 
 
 def test_confirmation_not_needed_at_ten_requests(cli: dict[str, Any], tmp_path: Path) -> None:
-    # 3 x 2 + 4 = 10 requests: at the threshold, no prompt.
-    cli["dataset"] = _write_dataset(tmp_path / "ten.jsonl", _many(3, 4))
-
     def input_fn(prompt: str) -> str:
         raise AssertionError("must not ask for <= 10 requests")
 
-    assert _main(cli, input_fn=input_fn) == 0
+    # script: 5 items x 2 = 10 requests; translate: 3 x 2 + 4 = 10. At the threshold, no prompt.
+    cli["dataset"] = _write_dataset(tmp_path / "ten.jsonl", _many(3, 2))
+    assert _main(cli, input_fn=input_fn, out=tmp_path / "a") == 0
+    assert len(cli["provider"].calls) == 10
+    cli["provider"] = ScriptedProvider()
+    cli["dataset"] = _write_dataset(tmp_path / "ten2.jsonl", _many(3, 4))
+    assert _main(cli, "--arabize", "translate", input_fn=input_fn, out=tmp_path / "b") == 0
     assert len(cli["provider"].calls) == 10
 
 
@@ -512,14 +561,14 @@ def test_confirmation_accepted_or_skipped(
         return "y"
 
     assert _main(cli, input_fn=accept, out=tmp_path / "a") == 0
-    assert "About to send 17 real requests" in capsys.readouterr().out
+    assert "About to send 22 real requests" in capsys.readouterr().out
     assert _main(cli, "--yes", input_fn=accept, out=tmp_path / "b") == 0
     assert len(prompts) == 1  # --yes skipped the prompt
-    assert len(cli["provider"].calls) == 34
+    assert len(cli["provider"].calls) == 44
 
 
 def test_main_baseline_diff(cli: dict[str, Any], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    assert _main(cli, out=tmp_path / "base") == 0
+    assert _main(cli, "--arabize", "translate", out=tmp_path / "base") == 0
     _, _, base_json = _only_report(tmp_path / "base")
 
     # f005 now detected right (fixed) and without a leak; f001 now wrong (broken) and leaking.
@@ -527,7 +576,7 @@ def test_main_baseline_diff(cli: dict[str, Any], tmp_path: Path, capsys: pytest.
         detect={"el meeting et2agel": "arz", "ana msh fahem": "en"},
         arabic_out={"el meeting et2agel": "الـ meeting اتأجل", "ana msh fahem": "ana مش فاهم"},
     )
-    assert _main(cli, "--baseline", str(base_json), out=tmp_path / "new") == 0
+    assert _main(cli, "--arabize", "translate", "--baseline", str(base_json), out=tmp_path / "new") == 0
     report, markdown, _ = _only_report(tmp_path / "new")
     diff = report["baseline"]
     assert diff["fixed"] == ["f005"]
@@ -541,7 +590,8 @@ def test_main_baseline_diff(cli: dict[str, Any], tmp_path: Path, capsys: pytest.
     assert "Detection fixed (1): f005" in markdown
     assert "New Latin leaks (1): f001" in markdown
     assert "Warning" not in markdown
-    assert "Baseline: 1 fixed, 1 broken" in capsys.readouterr().out
+    assert diff["script_prompt"] == "n/a"
+    assert "Baseline (translate -> translate): 1 fixed, 1 broken" in capsys.readouterr().out
 
 
 def test_main_baseline_warns_on_dataset_change(cli: dict[str, Any], tmp_path: Path) -> None:
@@ -549,7 +599,7 @@ def test_main_baseline_warns_on_dataset_change(cli: dict[str, Any], tmp_path: Pa
     _, _, base_json = _only_report(tmp_path / "base")
     extra = [*ITEMS, _arz("f006", "yalla bina", "يلا بينا", "short", "no_numerals")]
     cli["dataset"] = _write_dataset(tmp_path / "ds2.jsonl", extra)
-    assert _main(cli, "--baseline", str(base_json), out=tmp_path / "new") == 0
+    assert _main(cli, "--yes", "--baseline", str(base_json), out=tmp_path / "new") == 0
     report, markdown, _ = _only_report(tmp_path / "new")
     assert report["baseline"]["dataset_hash_changed"] is True
     assert report["baseline"]["only_in_current"] == ["f006"]
@@ -579,4 +629,218 @@ def test_main_runs_on_real_dataset_with_limit(cli: dict[str, Any], tmp_path: Pat
     report, _, _ = _only_report(tmp_path / "real")
     assert [i["id"] for i in report["items"]] == ["f001", "f002", "f003"]
     assert report["meta"]["dataset"]["path"] == "evals/data/franco.jsonl"
-    assert len(cli["provider"].calls) == 5  # 2 + 2 + 1 (f003 is a control)
+    assert len(cli["provider"].calls) == 6  # 3 items x 2 (script path, control included)
+    assert report["meta"]["arabize"] == "script"
+
+
+# --- script path (default) -------------------------------------------------------------
+
+
+async def test_script_path_is_default_and_sends_two_requests_per_item() -> None:
+    provider = ScriptedProvider()
+    await _run(provider)
+    assert provider.calls == [
+        ("ana msh fahem", "en"), ("ana msh fahem", "script"),
+        ("inshallah", "en"), ("inshallah", "script"),
+        ("see you later", "fr"), ("see you later", "script"),
+        ("à plus tard", "en"), ("à plus tard", "script"),
+        ("el meeting et2agel", "en"), ("el meeting et2agel", "script"),
+    ]
+    assert len(provider.calls) == franco.request_count(ITEMS, "script")
+
+
+async def test_script_path_scores_arabic_items_and_checks_controls() -> None:
+    run = await _run(ScriptedProvider())
+    by_id = {r.id: r for r in run.items}
+
+    arz = by_id["f005"]
+    assert arz.arabize_target == "script"
+    assert arz.arabic_output == "الـ meeting اتأجل"
+    assert arz.arabic_detected is None
+    assert arz.chrf == pytest.approx(100.0)
+    assert arz.latin_leak is False
+    assert arz.control_unchanged is None
+
+    kept = by_id["f003"]
+    assert kept.arabize_target == "script"
+    assert kept.arabic_output == "see you later"
+    assert kept.control_unchanged is True
+    assert kept.chrf is None and kept.latin_leak is None
+    assert by_id["f004"].control_unchanged is False
+
+    summary = franco.summarize_franco([r.model_dump() for r in run.items])
+    assert summary["controls_unchanged"] == {
+        "n": 2, "scored": 2, "errors": 0, "unchanged": 1, "rate": 0.5,
+    }
+    arb = summary["arabization"]  # controls are never chrF-scored
+    assert (arb["n"], arb["scored"], arb["latin_leaks"]) == (3, 3, 0)
+    assert arb["mean_chrf"] == pytest.approx(100.0)
+
+
+@pytest.mark.parametrize(
+    ("output", "text", "same"),
+    [
+        (" see  you\nlater ", "see you later", True),
+        ("see you later", "see you later", True),
+        ("See you later", "see you later", False),
+        ("see you later.", "see you later", False),
+        ("سي يو ليتر", "see you later", False),
+    ],
+)
+def test_same_text_normalises_whitespace_only(output: str, text: str, same: bool) -> None:
+    assert franco.same_text(output, text) is same
+
+
+async def test_script_errors_are_recorded_per_pass() -> None:
+    provider = ScriptedProvider(
+        script={
+            ("el meeting et2agel", "script"): [ProviderBadOutputError(SECRET)],
+            ("see you later", "script"): [ProviderBadOutputError(SECRET)],
+        }
+    )
+    run = await _run(provider)
+    by_id = {r.id: r for r in run.items}
+    for item_id in ("f005", "f003"):
+        result = by_id[item_id]
+        assert result.arabize_target == "script"
+        assert result.arabize_error_type == "ProviderBadOutputError"
+        assert result.arabic_output is None
+        assert result.chrf is None and result.control_unchanged is None
+    assert by_id["f003"].outcome == "correct"  # detection still ran
+    assert SECRET not in json.dumps([r.model_dump() for r in run.items], ensure_ascii=False)
+
+    summary = franco.summarize_franco([r.model_dump() for r in run.items])
+    assert summary["controls_unchanged"] == {
+        "n": 2, "scored": 1, "errors": 1, "unchanged": 0, "rate": 0.0,
+    }
+    assert summary["arabization"]["errors"] == 1
+
+
+async def test_script_rate_limit_retries_then_stops_partial() -> None:
+    provider = ScriptedProvider(script={("inshallah", "script"): [ProviderRateLimitError("429")]})
+    sleep = SleepSpy()
+    run = await _run(provider, ITEMS[:2], delay=4.0, retry_wait=60.0, sleep=sleep)
+    assert not run.partial
+    assert [r.arabic_output for r in run.items] == ["أنا مش فاهم", "إن شاء الله"]
+    assert sleep.calls == [4.0, 4.0, 4.0, 60.0]
+
+    forever = ScriptedProvider(script={("inshallah", "script"): [ProviderRateLimitError("429")] * 10})
+    run = await _run(forever)
+    assert run.partial and run.stop_reason == "rate_limit"
+    assert [r.id for r in run.items] == ["f001"]
+    assert run.not_run == len(ITEMS) - 1
+
+
+async def test_script_auth_error_aborts_without_detail() -> None:
+    provider = ScriptedProvider(script={("ana msh fahem", "script"): [ProviderAuthError(SECRET)]})
+    with pytest.raises(dialect.EvalAborted) as excinfo:
+        await _run(provider)
+    assert SECRET not in str(excinfo.value)
+
+
+def test_script_prompt_fingerprint_is_stable_and_separate() -> None:
+    fingerprint = franco.script_prompt_fingerprint()
+    assert fingerprint == franco.script_prompt_fingerprint()
+    assert len(fingerprint) == 12 and int(fingerprint, 16) >= 0
+    assert fingerprint not in {dialect.prompt_fingerprint(t) for t in franco.FINGERPRINT_TARGETS}
+
+
+def test_main_script_path_writes_reports(cli: dict[str, Any], capsys: pytest.CaptureFixture[str]) -> None:
+    assert _main(cli) == 0
+    report, markdown, _ = _only_report(cli["out"])
+
+    meta = report["meta"]
+    assert meta["arabize"] == "script"
+    assert meta["script_prompt_fingerprint"] == franco.script_prompt_fingerprint()
+    assert meta["prompt_fingerprint"] == {
+        t: dialect.prompt_fingerprint(t) for t in ("en", "fr", "ar", "arz")
+    }
+    assert meta["requests_planned"] == 10
+    assert "to_arabic_script" in meta["targets"]["arabize"]
+
+    rescored = franco.summarize_franco(report["items"])
+    rescored["not_run"] = report["summary"]["not_run"]
+    assert json.loads(json.dumps(rescored)) == report["summary"]
+
+    assert "| Arabization path | `script`: script conversion" in markdown
+    assert f"script `{franco.script_prompt_fingerprint()}`" in markdown
+    assert (
+        "Controls unchanged (script output == input after whitespace normalisation): "
+        "**1/2** = 50.0%. Errors: 0." in markdown
+    )
+    assert "`arabized output` is the `to_arabic_script` output." in markdown
+    assert "| f005 | el meeting et2agel | الـ meeting اتأجل | الـ meeting اتأجل | 100.0 |" in markdown
+    assert "| id | text | label -> predicted | output | script output | unchanged |" in markdown
+    assert "| f003 | see you later | en -> en | fr(see you later) | see you later | yes |" in markdown
+    assert "| f004 | à plus tard | fr -> arz | en(à plus tard) | ا بلوس تارد | **no** |" in markdown
+
+    out = capsys.readouterr().out
+    assert out.isascii()
+    assert "(arabize: script)" in out
+    assert "[1/5] f001 arz -> arz CORRECT | to:script chrF 100.0 leak=no" in out
+    assert "[3/5] f003 en -> en CORRECT | to:script unchanged=yes" in out
+    assert "[4/5] f004 fr -> arz WRONG | to:script unchanged=no" in out
+    assert "Arabization (script): mean chrF 100.0 over 3" in out
+    assert "Controls unchanged: 1/2 = 50.0% | errors: 0" in out
+
+
+def test_main_script_run_against_translate_baseline(
+    cli: dict[str, Any], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _main(cli, "--arabize", "translate", out=tmp_path / "base") == 0
+    _, _, base_json = _only_report(tmp_path / "base")
+    # Make it look like the real baseline, written before the script path existed.
+    with open(base_json, encoding="utf-8") as fh:
+        old = json.load(fh)
+    del old["meta"]["arabize"], old["meta"]["script_prompt_fingerprint"]
+    del old["summary"]["controls_unchanged"]
+    for item in old["items"]:
+        del item["control_unchanged"]
+    with open(base_json, "w", encoding="utf-8") as fh:
+        json.dump(old, fh, ensure_ascii=False)
+    before_f005 = next(i["chrf"] for i in old["items"] if i["id"] == "f005")
+
+    assert _main(cli, "--baseline", str(base_json), out=tmp_path / "new") == 0
+    report, markdown, _ = _only_report(tmp_path / "new")
+    diff = report["baseline"]
+    assert diff["baseline_arabize"] == "translate"
+    assert diff["script_prompt"] == "new"
+    assert diff["prompt_changed"] is False  # translation prompts untouched
+    assert diff["fixed_leaks"] == ["f005"] and diff["new_leaks"] == []
+    assert (diff["baseline_latin_leaks"], diff["baseline_arabize_scored"]) == (1, 3)
+    assert list(diff["groups"]["split"]) == ["dev", "test"]
+    assert "control" not in diff["groups"]["tag"]  # no ar/arz items on either side
+    code_switch = diff["groups"]["tag"]["code_switch"]
+    assert code_switch["chrf_before"] == pytest.approx(before_f005)
+    assert code_switch["chrf_after"] == pytest.approx(100.0)
+    assert (code_switch["leaks_before"], code_switch["leaks_after"]) == (1, 0)
+
+    assert "- Arabization path: translate -> script" in markdown
+    assert "- Latin leaks: 1/3 (33.3%) -> 0/3 (0.0%)" in markdown
+    assert "- Translation prompts changed: no" in markdown
+    assert "- Script prompt: new" in markdown
+    assert "### Mean chrF and Latin leaks by split" in markdown
+    assert "### Mean chrF and Latin leaks by tag" in markdown
+    delta = f"{100.0 - before_f005:+.1f}"
+    assert f"| code_switch | {before_f005:.1f} | 100.0 | {delta} | 1/1 | 0/1 |" in markdown
+
+    out = capsys.readouterr().out
+    assert "Baseline (translate -> script): 0 fixed, 0 broken, chrF " in out
+    assert "(dev " in out and ", test " in out
+    assert "leaks 1/3 -> 0/3, 0 new leak(s)" in out
+
+
+def test_main_script_run_against_script_baseline(cli: dict[str, Any], tmp_path: Path) -> None:
+    assert _main(cli, out=tmp_path / "base") == 0
+    _, _, base_json = _only_report(tmp_path / "base")
+    assert _main(cli, "--baseline", str(base_json), out=tmp_path / "new") == 0
+    report, _, _ = _only_report(tmp_path / "new")
+    assert report["baseline"]["baseline_arabize"] == "script"
+    assert report["baseline"]["script_prompt"] == "same"
+
+
+def test_main_rejects_unknown_arabize(cli: dict[str, Any]) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        _main(cli, "--arabize", "transliterate")
+    assert excinfo.value.code == 2
+    assert cli["provider"].calls == []
