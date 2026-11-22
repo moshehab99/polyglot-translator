@@ -86,23 +86,15 @@ Rules:
 - Write every Franco-Arabic word in Arabic script with its normal spelling, as an Egyptian
   would write it. Keep the writer's choice of word and variant: never swap a word for a
   synonym or for a different form of it.
-- Follow the sounds the writer typed. Never restore a consonant they did not write, never
-  switch to another variant of the word or to its Modern Standard Arabic form, and never
-  split one word into two or merge two words into one.
-- Spell each word in its usual full form, including its long vowels, even when the writer
-  left vowels out (kmn -> كمان).
 - Modern Standard Arabic typed in Latin letters is converted the same way and stays Modern
   Standard Arabic. Never turn it into dialect, or dialect into Modern Standard Arabic.
 - Digits inside a word stand for letters: 2 = ء or ق (whichever the word really has),
   3 = ع, 3' or 8 = غ, 5 or 7' = خ, 7 = ح, 9 = ق. A number standing on its own is a real
   number and stays exactly the same digits (0-9).
-- Use standard Arabic letters only: ك and ي, never the Persian ک or ی.
 - Words in English, French or any other non-Arabic language stay exactly as written, in Latin
   script, with the same spelling and capitalisation. That includes their chat abbreviations.
-- Articles: "الـ" followed by a space is only for an Arabic article before a kept
-  non-Arabic word. Before an Arabic word the article is joined to it, and an article is
-  never added. An Arabic prefix or article attached to a kept word is still converted to
-  Arabic; only the kept word stays in Latin.
+  An Arabic article or preposition written as its own word before such a word is still
+  converted; the article becomes "الـ" followed by a space and the kept word.
 - A word that is also a real English, French or other word is decided from the rest of the
   sentence: in a non-Arabic sentence it stays as written.
 - Arabic chat abbreviations and Arabic words typed without vowels are written out in full
@@ -120,8 +112,6 @@ Examples (input => converted):
 - e7na 3andena 6 ektebarat abl il agaza => إحنا عندنا 6 اختبارات قبل الأجازة
 - sa7by 3awez yeegy, il 2akl gameeeel gedan 😋 => صاحبي عاوز ييجي، الأكل جميل جدا 😋
 - 5alast il task, شكرا => خلصت الـ task، شكرا
-- abooya mabyesma3sh il voice note => أبويا مابيسمعش الـ voice note
-- e7na hn-share il slides => إحنا هن-share الـ slides
 - hal tastatee3 mosa3adati? => هل تستطيع مساعدتي؟
 - omg idk, traffic looks crazy 2nite!! => omg idk, traffic looks crazy 2nite!!
 """
