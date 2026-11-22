@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
@@ -39,6 +39,19 @@ class DatasetError(ValueError):
     """The dataset file is malformed. The message names the file and line."""
 
 
+def check_text(value: str) -> str:
+    """Shared ``text`` rules: non-empty, stripped, one line, at most MAX_TEXT_CHARS."""
+    if not value.strip():
+        raise ValueError("text is empty")
+    if value != value.strip():
+        raise ValueError("text has leading or trailing whitespace")
+    if "\n" in value or "\r" in value:
+        raise ValueError("text must be a single line")
+    if len(value) > MAX_TEXT_CHARS:
+        raise ValueError(f"text is longer than {MAX_TEXT_CHARS} characters")
+    return value
+
+
 class EvalItem(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -51,15 +64,7 @@ class EvalItem(BaseModel):
     @field_validator("text")
     @classmethod
     def _check_text(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("text is empty")
-        if value != value.strip():
-            raise ValueError("text has leading or trailing whitespace")
-        if "\n" in value or "\r" in value:
-            raise ValueError("text must be a single line")
-        if len(value) > MAX_TEXT_CHARS:
-            raise ValueError(f"text is longer than {MAX_TEXT_CHARS} characters")
-        return value
+        return check_text(value)
 
     @field_validator("tags")
     @classmethod
@@ -72,14 +77,21 @@ class EvalItem(BaseModel):
         return value
 
 
+ItemT = TypeVar("ItemT", bound=BaseModel)
+
+
 def _normalized(text: str) -> str:
     return " ".join(text.split())
 
 
-def load_dataset(path: str | Path) -> list[EvalItem]:
-    """Load and validate a JSONL dataset. Errors name the file and the 1-based line."""
+def load_dataset(path: str | Path, model: type[ItemT] = EvalItem) -> list[ItemT]:  # type: ignore[assignment]
+    """Load and validate a JSONL dataset. Errors name the file and the 1-based line.
+
+    ``model`` is the item schema; it needs ``id`` and ``text`` fields. Defaults to the
+    dialect ``EvalItem``.
+    """
     path = Path(path)
-    items: list[EvalItem] = []
+    items: list[ItemT] = []
     seen_ids: dict[str, int] = {}
     seen_texts: dict[str, int] = {}
 
@@ -98,7 +110,7 @@ def load_dataset(path: str | Path) -> list[EvalItem]:
             if not isinstance(data, dict):
                 raise DatasetError(f"{where}: expected a JSON object")
             try:
-                item = EvalItem.model_validate(data)
+                item = model.model_validate(data)
             except ValidationError as exc:
                 problems = "; ".join(
                     f"{'.'.join(str(p) for p in err['loc']) or 'item'}: {err['msg']}"
@@ -106,7 +118,7 @@ def load_dataset(path: str | Path) -> list[EvalItem]:
                 )
                 raise DatasetError(f"{where}: {problems}") from exc
 
-            if item.id in seen_ids:
+            if item.id in seen_ids:  # type: ignore[attr-defined]
                 raise DatasetError(
                     f"{where}: duplicate id {item.id!r} (first seen on line {seen_ids[item.id]})"
                 )

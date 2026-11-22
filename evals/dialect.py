@@ -22,6 +22,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, Protocol
@@ -90,6 +91,73 @@ class RunResult(BaseModel):
 # --- running -------------------------------------------------------------------------
 
 
+class RateLimitExhausted(Exception):
+    """The rate limit persisted after all retries; the caller stops with a partial run."""
+
+
+@dataclass(frozen=True)
+class Attempt:
+    """One request's outcome: ``response`` on success, else ``error_type`` (name only)."""
+
+    response: TranslationResult | str | None = None
+    error_type: str | None = None
+    latency_ms: float | None = None
+
+
+async def call_with_retries(
+    service: Translator,
+    text: str,
+    target: str,
+    *,
+    retry_wait: float,
+    max_retries: int,
+    sleep: Sleep,
+    clock: Callable[[], float],
+) -> Attempt:
+    """Translate ``text`` from ``auto`` once, retrying on rate limits (see ``retry_request``)."""
+    return await retry_request(
+        lambda: service.translate(text, AUTO, target),
+        retry_wait=retry_wait, max_retries=max_retries, sleep=sleep, clock=clock,
+    )
+
+
+async def retry_request(
+    request: Callable[[], Awaitable[TranslationResult | str]],
+    *,
+    retry_wait: float,
+    max_retries: int,
+    sleep: Sleep,
+    clock: Callable[[], float],
+) -> Attempt:
+    """Send one service request, retrying on rate limits.
+
+    - ``ProviderRateLimitError``: wait ``retry_wait`` and retry, at most ``max_retries``
+      times; then raise ``RateLimitExhausted``.
+    - ``ProviderAuthError``: raise ``EvalAborted``.
+    - Other ``ProviderError``: return an ``Attempt`` with the exception type name only.
+    - Anything else propagates.
+    """
+    retries = 0
+    while True:
+        start = clock()
+        try:
+            response = await request()
+        except ProviderRateLimitError:
+            if retries >= max_retries:
+                raise RateLimitExhausted from None
+            retries += 1
+            await sleep(retry_wait)
+            continue
+        except ProviderAuthError:
+            raise EvalAborted(
+                "Authentication with the provider failed. Check the API key for the "
+                "active provider in .env."
+            ) from None
+        except ProviderError as exc:
+            return Attempt(error_type=type(exc).__name__)
+        return Attempt(response=response, latency_ms=round((clock() - start) * 1000, 1))
+
+
 def select_items(items: Sequence[EvalItem], tag: str | None, limit: int | None) -> list[EvalItem]:
     """Filter by ``tag`` first, then keep the first ``limit`` items in file order."""
     selected = [item for item in items if tag is None or tag in item.tags]
@@ -120,40 +188,30 @@ async def run_eval(
     for index, item in enumerate(items):
         if index:
             await sleep(delay)
-        retries = 0
-        while True:
-            start = clock()
-            try:
-                response = await service.translate(item.text, AUTO, target)
-            except ProviderRateLimitError:
-                if retries >= max_retries:
-                    return RunResult(
-                        items=results,
-                        partial=True,
-                        stop_reason="rate_limit",
-                        not_run=len(items) - index,
-                    )
-                retries += 1
-                await sleep(retry_wait)
-                continue
-            except ProviderAuthError:
-                raise EvalAborted(
-                    "Authentication with the provider failed. Check the API key for the "
-                    "active provider in .env."
-                ) from None
-            except ProviderError as exc:
-                result = ItemResult(
-                    id=item.id,
-                    text=item.text,
-                    label=item.label,
-                    predicted=None,
-                    outcome="error",
-                    tags=list(item.tags),
-                    error_type=type(exc).__name__,
-                )
-                break
-            latency_ms = round((clock() - start) * 1000, 1)
-            predicted = response.detected_source.code
+        try:
+            attempt = await call_with_retries(
+                service, item.text, target,
+                retry_wait=retry_wait, max_retries=max_retries, sleep=sleep, clock=clock,
+            )
+        except RateLimitExhausted:
+            return RunResult(
+                items=results,
+                partial=True,
+                stop_reason="rate_limit",
+                not_run=len(items) - index,
+            )
+        if attempt.response is None:
+            result = ItemResult(
+                id=item.id,
+                text=item.text,
+                label=item.label,
+                predicted=None,
+                outcome="error",
+                tags=list(item.tags),
+                error_type=attempt.error_type,
+            )
+        else:
+            predicted = attempt.response.detected_source.code
             result = ItemResult(
                 id=item.id,
                 text=item.text,
@@ -161,10 +219,9 @@ async def run_eval(
                 predicted=predicted,
                 outcome="correct" if predicted == item.label else "wrong",
                 tags=list(item.tags),
-                translation=response.translation,
-                latency_ms=latency_ms,
+                translation=attempt.response.translation,
+                latency_ms=attempt.latency_ms,
             )
-            break
         results.append(result)
         if on_item is not None:
             on_item(index, result)
@@ -206,9 +263,9 @@ def sanitize(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "-", value).strip(".-") or "unknown"
 
 
-def report_basename(created: datetime, provider: str, model: str) -> str:
+def report_basename(created: datetime, provider: str, model: str, prefix: str = "dialect") -> str:
     stamp = created.astimezone(UTC).strftime("%Y%m%d-%H%M%S")
-    return f"dialect_{stamp}_{sanitize(provider)}_{sanitize(model)}"
+    return f"{prefix}_{stamp}_{sanitize(provider)}_{sanitize(model)}"
 
 
 def display_path(path: Path) -> str:

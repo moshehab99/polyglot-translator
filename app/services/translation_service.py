@@ -19,7 +19,8 @@ class TranslationService:
     def max_chars(self) -> int:
         return self._max_chars
 
-    async def translate(self, text: str, source_code: str, target_code: str) -> TranslationResult:
+    def _clean(self, text: str) -> str:
+        """Strip ``text`` and check it is non-empty and within ``max_chars``."""
         cleaned = text.strip()
         if not cleaned:
             raise TranslationValidationError("Please enter some text to translate.")
@@ -27,6 +28,10 @@ class TranslationService:
             raise TranslationValidationError(
                 f"Text is too long: {len(cleaned)} characters (maximum {self._max_chars})."
             )
+        return cleaned
+
+    async def translate(self, text: str, source_code: str, target_code: str) -> TranslationResult:
+        cleaned = self._clean(text)
         if not is_supported(target_code):
             raise TranslationValidationError(f"Unsupported target language: {target_code!r}.")
         target = get_language(target_code)
@@ -45,3 +50,7 @@ class TranslationService:
             )
 
         return await self._provider.translate(cleaned, source, target)
+
+    async def to_arabic_script(self, text: str) -> str:
+        """Convert Franco-Arabic in ``text`` to Arabic script (no translation)."""
+        return await self._provider.to_arabic_script(self._clean(text))

@@ -13,7 +13,8 @@ from app.providers.base import (
     ProviderRateLimitError,
     ProviderUnavailableError,
 )
-from app.providers.schemas import TranslationOutput
+from app.providers.prompts import build_script_system_prompt, build_script_user_message
+from app.providers.schemas import ScriptOutput, TranslationOutput
 
 EN = get_language("en")
 AR = get_language("ar")
@@ -102,3 +103,60 @@ async def test_bad_output_variants(resp: SimpleNamespace) -> None:
     client = make_client(resp)
     with pytest.raises(ProviderBadOutputError):
         await AnthropicProvider(client=client, model="m").translate("x", None, EN)
+
+
+# --- to_arabic_script ------------------------------------------------------------
+
+
+async def test_to_arabic_script_sends_script_prompt_and_schema() -> None:
+    client = make_client(response(ScriptOutput(converted=" الـ laptop وقع ")))
+
+    result = await AnthropicProvider(client=client, model="m").to_arabic_script("il laptop w2e3")
+
+    assert result == "الـ laptop وقع"
+    kwargs = client.messages.parse.await_args.kwargs
+    assert kwargs["output_format"] is ScriptOutput
+    assert kwargs["output_config"] == {"effort": "low"}
+    assert kwargs["system"] == build_script_system_prompt()
+    assert kwargs["messages"] == [
+        {"role": "user", "content": build_script_user_message("il laptop w2e3")}
+    ]
+
+
+@pytest.mark.parametrize(
+    "resp",
+    [
+        response(None),
+        response(TranslationOutput(detected_source="en", translation="x")),  # wrong type
+        response(ScriptOutput(converted="x"), stop_reason="refusal"),
+        response(ScriptOutput(converted="x"), stop_reason="max_tokens"),
+        response(ScriptOutput(converted="  ")),
+    ],
+)
+async def test_to_arabic_script_bad_output_variants(resp: SimpleNamespace) -> None:
+    with pytest.raises(ProviderBadOutputError):
+        await AnthropicProvider(client=make_client(resp), model="m").to_arabic_script("x")
+
+
+@pytest.mark.parametrize(
+    ("cls", "status", "expected"),
+    [
+        (anthropic.AuthenticationError, 401, ProviderAuthError),
+        (anthropic.RateLimitError, 429, ProviderRateLimitError),
+        (anthropic.InternalServerError, 500, ProviderUnavailableError),
+    ],
+)
+async def test_to_arabic_script_shares_error_mapping(
+    cls: type[anthropic.APIStatusError], status: int, expected: type[Exception]
+) -> None:
+    client = make_client(side_effect=status_error(cls, status, "upstream says no"))
+    with pytest.raises(expected) as exc_info:
+        await AnthropicProvider(client=client, model="m").to_arabic_script("x")
+    assert str(status) in exc_info.value.detail
+
+
+async def test_to_arabic_script_connection_error_is_unavailable() -> None:
+    request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+    client = make_client(side_effect=anthropic.APIConnectionError(request=request))
+    with pytest.raises(ProviderUnavailableError):
+        await AnthropicProvider(client=client, model="m").to_arabic_script("x")

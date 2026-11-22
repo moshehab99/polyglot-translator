@@ -24,9 +24,24 @@ class TranslationOutput(BaseModel):
     )
 
 
-def translation_json_schema() -> dict[str, object]:
-    """JSON schema in the plain form both provider APIs accept."""
-    schema = TranslationOutput.model_json_schema()
+class ScriptOutput(BaseModel):
+    """Result of Arabic script conversion. Both providers enforce this via JSON schema."""
+
+    converted: str = Field(
+        description=(
+            "The input with its Franco-Arabic words written in Arabic script and everything "
+            "else kept exactly as written. No notes, labels, quotes or explanations."
+        )
+    )
+
+
+def json_schema_for(model: type[BaseModel]) -> dict[str, object]:
+    """JSON schema of ``model`` in the plain form both provider APIs accept."""
+    schema = model.model_json_schema()
     schema.pop("title", None)
     schema["additionalProperties"] = False
     return schema
+
+
+def translation_json_schema() -> dict[str, object]:
+    return json_schema_for(TranslationOutput)

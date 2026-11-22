@@ -44,7 +44,7 @@ class ProviderBadOutputError(ProviderError):
 
 
 class TranslationProvider(ABC):
-    """Translate text between two supported languages.
+    """Translate text between two supported languages, or convert Franco-Arabic to Arabic script.
 
     ``source`` is ``None`` when the caller wants the provider to auto-detect it.
     Implementations raise only ``ProviderError`` subclasses.
@@ -56,3 +56,7 @@ class TranslationProvider(ABC):
     async def translate(
         self, text: str, source: Language | None, target: Language
     ) -> TranslationResult: ...
+
+    @abstractmethod
+    async def to_arabic_script(self, text: str) -> str:
+        """Rewrite Franco-Arabic words in Arabic script; keep everything else as written."""

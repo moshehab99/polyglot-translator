@@ -28,6 +28,14 @@ class TranslateResponse(BaseModel):
     target_rtl: bool
 
 
+class ArabicScriptRequest(BaseModel):
+    text: str = Field(description="Text whose Franco-Arabic words are written in Arabic script.")
+
+
+class ArabicScriptResponse(BaseModel):
+    result: str
+
+
 class HealthResponse(BaseModel):
     status: str
     provider: str
