@@ -81,3 +81,17 @@ def test_static_assets_wire_arabic_script(client: TestClient) -> None:
     assert 'getElementById("arabic-script")' in js
     assert 'output.dir = "rtl"' in js
     assert ".secondary-button" in css
+
+
+def test_header_has_author_credit(client: TestClient) -> None:
+    html = client.get("/").text
+    header = re.search(r'<header class="site-header">(.*?)</header>', html, re.S)
+    assert header, "site header missing"
+    byline = re.search(r'<span class="byline">By (<a [^>]*>)moShehab</a></span>', header.group(1))
+    assert byline, "byline missing from the header"
+    link = byline.group(1)
+    assert 'href="https://github.com/moshehab99"' in link
+    assert 'target="_blank"' in link and 'rel="noopener"' in link
+    # Right after the tagline.
+    assert header.group(1).index('class="tagline"') < header.group(1).index('class="byline"')
+    assert ".byline" in client.get("/static/css/style.css").text
